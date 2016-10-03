@@ -1,6 +1,141 @@
 module Common where
 
   open import Agda.Primitive
+  open import Function
+  open import Data.Nat hiding (_⊔_)
+  open import Data.Nat.Properties using (≤-step)
+  open import Data.Nat.Properties.Simple using (+-comm)
+  open import Data.Fin hiding (_≤_ ; _+_)
+  open import Data.Product
+  open import Data.Sum hiding (map)
+  open import Relation.Nullary
+  open import Relation.Nullary.Negation
+  open import Relation.Binary.PropositionalEquality
+
+  relaxFin : {n : ℕ} → Fin n → Fin (suc n)
+  relaxFin zero = zero
+  relaxFin (suc m) = suc (relaxFin m)
+
+  toℕ-relaxFin : {n : ℕ} → (i : Fin n) → toℕ (relaxFin i) ≡ toℕ i
+  toℕ-relaxFin zero = refl
+  toℕ-relaxFin (suc m) = cong suc (toℕ-relaxFin m)
+
+  ≤-relax : {n : ℕ} → {i : ℕ} → {a : Fin n}
+    → i ≤ toℕ a
+    → i ≤ toℕ (relaxFin a)
+  ≤-relax {i = i} {a = a} = subst (λ x → i ≤ x) (sym (toℕ-relaxFin a))
+
+  ≰-relax : {n : ℕ} → {i : ℕ} → {a : Fin n}
+    → i ≰ toℕ a
+    → i ≰ toℕ (relaxFin a)
+  ≰-relax {i = i} {a = a} = subst (λ x → i ≰ x) (sym (toℕ-relaxFin a))
+
+  a+b≤c⇒b≤c : (a b c : ℕ) → a + b ≤ c → b ≤ c
+  a+b≤c⇒b≤c zero zero zero _ = z≤n
+  a+b≤c⇒b≤c zero (suc b) zero ()
+  a+b≤c⇒b≤c (suc a) b zero ()
+  a+b≤c⇒b≤c zero b (suc c) le = le
+  a+b≤c⇒b≤c (suc a) b (suc c) (s≤s le) = ≤-step (a+b≤c⇒b≤c a b c le)
+
+  a+b≤c⇒a≤c : (a b c : ℕ) → a + b ≤ c → a ≤ c
+  a+b≤c⇒a≤c a b c le = a+b≤c⇒b≤c b a c (subst (λ x → x ≤ c) (+-comm a b) le)
+
+  ¬¬-intro : ∀{α} {P : Set α} → P → ¬ ¬ P
+  ¬¬-intro p ¬p = ¬p p
+
+  ¬₃ : ∀{α} {P : Set α} → ¬ ¬ ¬ P → ¬ P
+  ¬₃ ¬¬¬p = ¬¬¬p ∘ ¬¬-intro
+
+  ¬¬× : ∀{α} {A B : Set α}
+    → ¬ ¬ (A × B)
+    → (¬ ¬ A) × (¬ ¬ B)
+  ¬¬× p = (λ ¬a → p (¬a ∘ proj₁)) , (λ ¬b → p (¬b ∘ proj₂))
+{-
+
+  relaxFin-toℕ : {n : ℕ} → (m : Fin n) → (toℕ m ≡ toℕ (relaxFin m))
+  relaxFin-toℕ zero = refl
+  relaxFin-toℕ (suc m) = cong suc (relaxFin-toℕ m)
+
+  flop : ∀{α} {T T' : Set α} → T ≡ T' → T → T'
+  flop refl = id
+
+  ¬2 : ∀{α} {P : Set α} → P → ¬ ¬ P
+  ¬2 p ¬p = ¬p p
+  
+  
+  ¬¬→ : ∀{α β} {A : Set α} {B : Set β} → (A → B) → (¬ ¬ A) → (¬ ¬ B)
+  ¬¬→ f ¬¬a = λ ¬b → ¬¬a (λ a → ¬b (f a))
+  
+--  ¬¬sym : ∀{α} {A : Set α} (x y : A) → ¬ ¬ (x ≡ y) → ¬ ¬ (y ≡ x)
+--  ¬¬sym
+  
+  
+-}
+
+
+-- Transitive-reflexive closure
+  data _⋆ {α β : Level} {A : Set α} (R : A → A → Set β) : A → A → Set (α ⊔ β) where
+    refl⋆ : {a : A} → (R ⋆) a a
+    trans⋆ : {a₀ a₁ a₂ : A} → R a₀ a₁ → (R ⋆) a₁ a₂ → (R ⋆) a₀ a₂
+
+  -- snoc
+  trans⋆′ : {α β : Level} {A : Set α} {R : A → A → Set β} {a₀ a₁ a₂ : A}
+    → (R ⋆) a₀ a₁ → R a₁ a₂ → (R ⋆) a₀ a₂
+  trans⋆′ refl⋆ r = trans⋆ r refl⋆
+  trans⋆′ (trans⋆ r rs) r' = trans⋆ r (trans⋆′ rs r')
+
+-- Symmetric relationships
+  symmetric : {α β : Level} {A : Set α} (R : A → A → Set β) → Set _
+  symmetric {A = A} R = {a₁ a₂ : A} → R a₁ a₂ → R a₂ a₁
+
+  symmetric⋆ : {α β : Level} {A : Set α} {R : A → A → Set β} → symmetric R → symmetric (R ⋆)
+  symmetric⋆ symm refl⋆ = refl⋆
+  symmetric⋆ symm (trans⋆ r rs) = trans⋆′ (symmetric⋆ symm rs) (symm r)
+
+
+  infix 4 _⇄_
+  infix 5 _:⇄:_
+  record _⇄_ {α β : Level} (From : Set α) (To : Set β) : Set (α ⊔ β) where
+    constructor _:⇄:_
+    field
+      fwd : From → To
+      bck : To → From
+  open _⇄_ public
+  
+  infixr 9 _⇄⇄_
+  _⇄⇄_ : ∀{α β γ} {A : Set α} {B : Set β} {C : Set γ}
+    → A ⇄ B → B ⇄ C → A ⇄ C
+  f ⇄⇄ g = fwd g ∘ fwd f :⇄: bck f ∘ bck g
+
+  ¬⇄ : ∀{α β} {A : Set α} {B : Set β} → A ⇄ B → (¬ A) ⇄ (¬ B)
+  ¬⇄ f = contraposition (bck f) :⇄: contraposition (fwd f)
+
+  ⇄-flip : ∀{α β} {A : Set α} {B : Set β} → A ⇄ B → B ⇄ A
+  ⇄-flip (f :⇄: b) = (b :⇄: f)
+
+  _∘⇄∘_ : ∀{α β γ} {A : Set α} {B : Set β} {C : Set γ} → (C → A → B) → (C → B → A) → C → (A ⇄ B)
+  (f ∘⇄∘ g) x = (f x) :⇄: (g x)
+
+  infixr 2 _⇄×⇄_
+  _⇄×⇄_ : ∀{α β γ δ} {A : Set α} {B : Set β} {C : Set γ} {D : Set δ}
+    → A ⇄ B
+    → C ⇄ D
+    → (A × C) ⇄ (B × D)
+  f ⇄×⇄ g = (map (fwd f) (fwd g)) :⇄: (map (bck f) (bck g))
+
+  -- Π : ∀{α β} (A : Set α) (B : A → Set β) → Set (α ⊔ β)
+  -- Π A B = (a : A) → (B a)
+  
+  -- Π⇄ : ∀{α β} {A : Set α} {B₁ B₂ : A → Set β} → Π A (λ x → B₁ x ⇄ B₂ x) → Π A B₁ ⇄ Π A B₂
+  -- Π⇄ h = (λ f → λ x → fwd (h x) (f x)) :⇄: (λ f → λ x → bck (h x) (f x))
+
+  Π⇄ : ∀{α β} {A : Set α} {B₁ B₂ : A → Set β}
+    → ((x : A) → B₁ x ⇄ B₂ x)
+    → ((x : A) → B₁ x) ⇄ ((x : A) → B₂ x)
+  Π⇄ h = (λ f → λ x → fwd (h x) (f x)) :⇄: (λ f → λ x → bck (h x) (f x))
+  
+  {-
+  open import Agda.Primitive
   open import Data.Bool
   open import Data.Unit
   open import Data.Empty
@@ -74,3 +209,51 @@ module Common where
     _∉?_ : {α α' : Level} {ds : DecSetoid α α'} {n : ℕ} → (x : Carrier ds) → (ys : Vec (Carrier ds) n) → Dec (_∉_ {ds = ds} x ys)
     _∉?_ {ds = ds} x ys = ¬? (x ∈? ys)
   -}
+  -}
+
+  module Functions where
+
+    Injective : ∀{α β} {X : Set α} {Y : Set β} → (X → Y) → Set (α ⊔ β)
+    Injective {X = X} {Y = Y} f = {x₁ x₂ : X} → (f x₁ ≡ f x₂) → (x₁ ≡ x₂)
+    
+    Surjective : ∀{α β} {X : Set α} {Y : Set β} → (X → Y) → Set (α ⊔ β)
+    Surjective {X = X} {Y = Y} f = (y : Y) → Σ X (λ x → f x ≡ y)
+
+    --pre : {X Y : Set} → (f : X → Y) → Surjective f → Y → X
+    --pre f sur = proj₁ ∘ sur
+
+    --pre-lemma : {X Y : Set} → (f : X → Y) → (s : Surjective f) → (y : Y) → f (pre s y) ≡ y
+    --pre-lemma f sur y = proj₂ sur y
+
+    -- bijection
+    record _↔_ {α β : Level} (X : Set α) (Y : Set β) : Set (α ⊔ β) where
+      field
+        f : X → Y
+        inj : Injective f
+        sur : Surjective f
+
+    -- injection
+    record _↣_ {α β : Level} (X : Set α) (Y : Set β) : Set (α ⊔ β) where
+      field
+        f : X → Y
+        inj : Injective f
+
+    {-
+    inverse : {X Y : Set} → X ↔ Y → Y ↔ X
+    inverse bi = record
+      { f = pre (_↔_.sur bi)
+      ; inj = λ y₁ y₂ proof → {!!}
+      ; sur = {!!}
+      }
+    -}
+
+  open Functions public
+{-
+proof:
+(proj₁ ∘ _↔_.sur bi) y₁ ≡
+(proj₁ ∘ _↔_.sur bi) y₂
+
+aka
+
+pre (_↔_.sur bi) y₁ ≡ pre (_↔_.sur bi) y₂
+-}
