@@ -256,14 +256,16 @@ module Semantics {X : Set} {X-dec : Decidable {A = X} _≡_ } where
 
       pass₆-sound : {n : ℕ} → (Φ : QH (suc n)) (p : QH n) → (e : Env n)
         → ⟦ p ∪ ([-] Φ) ⟧* e → ⟦ [-] ((ξ₀ p) ∪ Φ) ⟧* e
-      pass₆-sound Φ p e s = λ a → ∪-swap Φ (ξ₀ p) (a ∷ₑ e) (pass₅-sound Φ p e (∪-swap p ([-] Φ) e s) a)
+      --pass₆-sound Φ p e s = λ a → ∪-swap Φ (ξ₀ p) (a ∷ₑ e) (pass₅-sound Φ p e (∪-swap p ([-] Φ) e s) a)
+      pass₆-sound Φ p e s = {!!}
 
       pass₆'-sound : {n : ℕ} → (Φ : QH (suc n)) (p : QH n) → (e : Env n)
         → ⟦ [-] ((ξ₀ p) ∪ Φ) ⟧* e → ⟦ p ∪ ([-] Φ) ⟧* e
-      pass₆'-sound Φ p e s = ∪-swap ([-] Φ) p e (pass₅'-sound Φ p e (λ a → ∪-swap (ξ₀ p) Φ (a ∷ₑ e) (s a)))
+      pass₆'-sound Φ p e s = {!!}
+      --pass₆'-sound Φ p e s = ∪-swap ([-] Φ) p e (pass₅'-sound Φ p e (λ a → ∪-swap (ξ₀ p) Φ (a ∷ₑ e) (s a)))
 
---  open PassageSemantics public
-{-
+  open PassageSound
+
   {-
 
   Reminder
@@ -289,7 +291,7 @@ module Semantics {X : Set} {X-dec : Decidable {A = X} _≡_ } where
     e
     (¬¬-map sym)
   {-
-    h1 : (x : X) → Ticket (x ==' x)
+        h1 : (x : X) → Ticket (x ==' x)
         h2 : (x y : X) → Ticket ((x ==' y) ⊃ (y ==' x))
         h3 : (x y z : X) → Ticket (((x ==' y) & (y ==' z)) ⊃ (x ==' z))
         h4 : (x y : X) → Ticket ((x ==' y) ≡≡ atom ((tsuc (real x)) == (tsuc (real y))))
@@ -301,132 +303,11 @@ module Semantics {X : Set} {X-dec : Decidable {A = X} _≡_ } where
   
   -- SucNat is sound under the GG semantics.
   soundness* : {p : QH0} → ProofQH p → (e : Env zero) → ⟦ p ⟧* e
-  soundness* (fromFK p elem f proof) e = {!!}
+  soundness* (fromFK p elem proof) e = {!!}
     -- rules of passage
-  soundness* (~[+]/[-]~ {Φ = Φ} c proof) e = fwd ((c ◂-⇄ (~[+]⇄[-]~ Φ)) e) (soundness* proof e)
-  soundness* ([-]~/~[+] {Φ = Φ} c proof) e = bck ((c ◂-⇄ (~[+]⇄[-]~ Φ)) e) (soundness* proof e)
-  soundness* (~[-]/[+]~ {Φ = Φ} c proof) e = fwd ((c ◂-⇄ (~[-]⇄[+]~ Φ)) e) (soundness* proof e)
-  soundness* ([+]~/~[-] {Φ = Φ} c proof) e = bck ((c ◂-⇄ (~[-]⇄[+]~ Φ)) e) (soundness* proof e)
-  soundness* ([+]∪-in  {Φ = Φ} {p = p} c proof) e = fwd ((c ◂-⇄ ([+]∪-⇄ p Φ)) e) (soundness* proof e)
-  soundness* ([+]∪-out {Φ = Φ} {p = p} c proof) e = bck ((c ◂-⇄ ([+]∪-⇄ p Φ)) e) (soundness* proof e)
-  soundness* (∪[+]-in  {Φ = Φ} {p = p} c proof) e = fwd ((c ◂-⇄ (∪[+]-⇄ p Φ)) e) (soundness* proof e)
-  soundness* (∪[+]-out {Φ = Φ} {p = p} c proof) e = bck ((c ◂-⇄ (∪[+]-⇄ p Φ)) e) (soundness* proof e)
-  soundness* ([-]∪-in  {Φ = Φ} {p = p} c proof) e = fwd ((c ◂-⇄ ([-]∪-⇄ p Φ)) e) (soundness* proof e)
-  soundness* ([-]∪-out {Φ = Φ} {p = p} c proof) e = bck ((c ◂-⇄ ([-]∪-⇄ p Φ)) e) (soundness* proof e)
-  soundness* (∪[-]-in  {Φ = Φ} {p = p} c proof) e = fwd ((c ◂-⇄ (∪[-]-⇄ p Φ)) e) (soundness* proof e)
-  soundness* (∪[-]-out {Φ = Φ} {p = p} c proof) e = bck ((c ◂-⇄ (∪[-]-⇄ p Φ)) e) (soundness* proof e)
-  soundness* (gen1 {p} x proof) e = {!!}
-  soundness* (gen2 {p} x y proofyx) e = {!!}
+  soundness* (passage sp proof) e = {!!}
+  soundness* (gen₁ {p} x proof) e = {!!}
+  soundness* (gen₂ {p} x y proofyx) e = {!!}
   soundness* (simp {p} p∪pProof) e = raa* e p (λ ¬⟦p⟧* → (soundness* p∪pProof e) (¬⟦p⟧* , ¬⟦p⟧*))
-  soundness* (mp {p} {q} pqProof pProof) e = raa* e q (λ ¬⟦q⟧* → soundness* pqProof e (¬2 (soundness* pProof e) , ¬⟦q⟧*))
+  soundness* (mp {p} {q} pqProof pProof) e = raa* e q (λ ¬⟦q⟧* → soundness* pqProof e (¬¬-intro (soundness* pProof e) , ¬⟦q⟧*))
   soundness* (external t) e = arithSound* t e
-
-  {-
-  data ProofQH : QH0 → Set1 where
-        fromFK : {C : Set} (p : QH0) (e : elementary p) (f : Atom zero ↣ C)
-          → ProofFK (mapSF (_⟨$⟩_ (Injection.to f)) p e)
-          → ProofQH p
-        ~[+]-rule : {n : ℕ} {Φ : QH (suc n)} → (c : Context n zero)
-          → ProofQH (c ◂ (~ [+] Φ))
-          → ProofQH (c ◂ ([-] ~ Φ))
-        [-]~-rule : {n : ℕ} {Φ : QH (suc n)} → (c : Context n zero)
-          → ProofQH (c ◂ ([-] ~ Φ))
-          → ProofQH (c ◂ (~ [+] Φ))
-        ~[-]-rule : {n : ℕ} {Φ : QH (suc n)} → (c : Context n zero)
-          → ProofQH (c ◂ (~ [-] Φ))
-          → ProofQH (c ◂ ([+] ~ Φ))
-        [+]~-rule : {n : ℕ} {Φ : QH (suc n)} → (c : Context n zero)
-          → ProofQH (c ◂ ([+] ~ Φ))
-          → ProofQH (c ◂ (~ [-] Φ))
-        [+]∪-in  : {n : ℕ} {Φ : QH (suc n)} {p : QH n} →
-          → ProofQH (c ◂ (([+] Φ) ∪ p))
-          → ProofQH (c ◂ ([+] (Φ ∪ (ξ₀ p))))
-        [+]∪-out : {n : ℕ} {c : Context n zero} {Φ : QH (suc n)} {p : QH n}
-          → ProofQH (c ◂ ([+] (Φ ∪ (ξ₀ p))))
-          → ProofQH (c ◂ (([+] Φ) ∪ p))
-        ∪[+]-in  : {n : ℕ} {c : Context n zero} {Φ : QH (suc n)} {p : QH n}
-          → ProofQH (c ◂ (p ∪ ([+] Φ)))
-          → ProofQH (c ◂ ([+] ((ξ₀ p) ∪ Φ)))
-        ∪[+]-out : {n : ℕ} {c : Context n zero} {Φ : QH (suc n)} {p : QH n}
-          → ProofQH (c ◂ ([+] ((ξ₀ p) ∪ Φ)))
-          → ProofQH (c ◂ (p ∪ ([+] Φ)))
-        [-]∪-in  : {n : ℕ} {c : Context n zero} {Φ : QH (suc n)} {p : QH n}
-          → ProofQH (c ◂ (([-] Φ) ∪ p))
-          → ProofQH (c ◂ ([-] (Φ ∪ (ξ₀ p))))
-        [-]∪-out : {n : ℕ} {c : Context n zero} {Φ : QH (suc n)} {p : QH n}
-          → ProofQH (c ◂ ([-] (Φ ∪ (ξ₀ p))))
-          → ProofQH (c ◂ (([-] Φ) ∪ p))
-        ∪[-]-in  : {n : ℕ} {c : Context n zero} {Φ : QH (suc n)} {p : QH n}
-          → ProofQH (c ◂ (p ∪ ([-] Φ)))
-          → ProofQH (c ◂ ([-] ((ξ₀ p) ∪ Φ)))
-        ∪[-]-out : {n : ℕ} {c : Context n zero} {Φ : QH (suc n)} {p : QH n}
-          → ProofQH (c ◂ ([-] ((ξ₀ p) ∪ Φ)))
-          → ProofQH (c ◂ (p ∪ ([-] Φ)))
-        gen1 : {p : QH0} (x : X)
-          → ProofQH p
-          → ProofQH ([+] (bind x p))
-        gen2 : {p : QH0} (x y : X)
-          → ProofQH (sub y x p)
-          → ProofQH ([-] (bind y p))
-        simp : {p : QH0}
-          → ProofQH (p ∪ p)
-          → ProofQH p
-        mp : {p q : QH0}
-          → ProofQH (p ⊃ q)
-          → ProofQH p
-          → ProofQH q
-        external : {p : QH0}
-          → Ticket p
-          → ProofQH p
-  -}
-
-  
-  {-
-    
-    Need to give an element of type:
-        e ⟦ [+] (bind x p) ⟧*
-      = λ a → (insert a e) ⟦ bind x p ⟧*
-
-    So for a given y, we must give an element of type:
-
-      (insert a e) ⟦ bind x p ⟧*
-
-    This is equivalent to the semantics of p under e modified such that variable x maps to the number a:
-
-      e' = adjust x a e
-      e' ⟦ p ⟧* ≡ (insert a e) ⟦ bind x p ⟧*
-
-    But that may be hard to prove.
-
-      
-    So first let's show that:
-
-      ∀ (x, p) → x ∉ bind x p
-      
-      ∀ (x, p) → (e e' : Env) → (e and e' only differ at x) → x ∉ p → e ⟦ p ⟧* ≡ e' ⟦ p ⟧*
-
-      THM : ∀ (e, x, p) → e ⟦ p ⟧* ≡ (insert (evalReal e x) e) ⟦ bind x p ⟧*
-
-      Then since x ∉ bind x p, we can do:
-
-        e' = e modified so that x ↦ a
-          evalReal e' x = a
-          e' differs from e only at x
-          (insert a e') differs from (insert a e) only at x
-        
-        ==> (insert a e') ⟦ bind x p ⟧ ≡ (insert a e) ⟦ bind x p ⟧
-      
-      Then we apply THM with e':
-
-        ==> e' ⟦ p ⟧* ≡ (insert (evalReal e' x) e') ⟦ bind x p ⟧*
-          = e' ⟦ p ⟧* ≡ (insert a e') ⟦ bind x p ⟧*
-        
-      Then by trans prop we get:
-
-        e' ⟦ p ⟧* ≡ (insert a e) ⟦ bind x p ⟧
-
-      A recursive call gets us an element of the former type, and we're done.
-      
-      
-  -}
--}
