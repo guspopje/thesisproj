@@ -317,7 +317,7 @@ module SecondKind where
       
 
       -- See "Rules of Reasoning", p74
-      data ProofQH : QH0 → Set1 where
+      data ProofQH : QH0 → Set₁ where
         fromFK : (p : QH0) (e : elementary p)
           → ProofFK (lower p e)
           → ProofQH p
@@ -344,7 +344,7 @@ module SecondKind where
 
       -- Syntactic sugar.
       infix 10 ⊢_
-      ⊢_ : QH0 → Set1
+      ⊢_ : QH0 → Set₁
       ⊢_ = ProofQH
 
 

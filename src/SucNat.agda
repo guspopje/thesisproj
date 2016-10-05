@@ -297,7 +297,7 @@ module SucNat {X : Set} {X-dec : Decidable {A = X} _≡_ } where
         h6 : (x : X) → (n : ℕ) → Ticket (~ atom ((real x) == ((real x) +' (suc n))))
         h7 : (x : X) → Ticket ((atom ((real x) == tzero)) ∪ ([-] (atom ((real x) == (tsuc (appa zero))))))
       
-    open Axioms public hiding (_=='_ ; _+'_)
+    open Axioms public -- hiding (_=='_ ; _+'_)
     open Proofs Ticket public
 
     
