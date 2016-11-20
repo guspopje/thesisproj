@@ -1,16 +1,21 @@
 module Common where
 
   open import Agda.Primitive
-  open import Function
   open import Data.Nat hiding (_⊔_)
   open import Data.Nat.Properties using (≤-step)
   open import Data.Nat.Properties.Simple using (+-comm)
   open import Data.Fin hiding (_≤_ ; _+_)
-  open import Data.Product
-  open import Data.Sum hiding (map)
-  open import Relation.Nullary
-  open import Relation.Nullary.Negation
-  open import Relation.Binary.PropositionalEquality
+  open import Data.Vec using (Vec ; _∷_ ; [])
+  open import Function using (_∘_) public
+  open import Data.Product using (Σ ; _×_ ; _,_ ; proj₁ ; proj₂) public
+  open import Data.Sum using (_⊎_ ; inj₁ ; inj₂) public
+  open import Data.Empty using (⊥ ; ⊥-elim) public
+  open import Data.Unit using (⊤ ; tt) public
+  open import Relation.Nullary public
+  open import Relation.Nullary.Negation public
+  open import Relation.Nullary.Decidable hiding (map) public
+  open import Relation.Nullary.Sum public
+  open import Relation.Binary.PropositionalEquality public
 
   relaxFin : {n : ℕ} → Fin n → Fin (suc n)
   relaxFin zero = zero
@@ -50,6 +55,14 @@ module Common where
     → ¬ ¬ (A × B)
     → (¬ ¬ A) × (¬ ¬ B)
   ¬¬× p = (λ ¬a → p (¬a ∘ proj₁)) , (λ ¬b → p (¬b ∘ proj₂))
+
+  -- insert (suc i) case broken into cases to appease the case-coverage checker.
+  {-
+  insert : ∀{α} {n : ℕ} {A : Set α} → Fin (suc n) → A → Vec A n → Vec A (suc n)
+  insert zero a₀ as = a₀ ∷ as
+  insert (suc zero) a₀ (a ∷ as) = a ∷ (insert zero a₀ as)
+  insert (suc (suc i)) a₀ (a ∷ as) = a ∷ (insert (suc i) a₀ as)
+  -}
 {-
 
   relaxFin-toℕ : {n : ℕ} → (m : Fin n) → (toℕ m ≡ toℕ (relaxFin m))
@@ -121,7 +134,7 @@ module Common where
     → A ⇄ B
     → C ⇄ D
     → (A × C) ⇄ (B × D)
-  f ⇄×⇄ g = (map (fwd f) (fwd g)) :⇄: (map (bck f) (bck g))
+  f ⇄×⇄ g = (Data.Product.map (fwd f) (fwd g)) :⇄: (Data.Product.map (bck f) (bck g))
 
   -- Π : ∀{α β} (A : Set α) (B : A → Set β) → Set (α ⊔ β)
   -- Π A B = (a : A) → (B a)
@@ -133,7 +146,14 @@ module Common where
     → ((x : A) → B₁ x ⇄ B₂ x)
     → ((x : A) → B₁ x) ⇄ ((x : A) → B₂ x)
   Π⇄ h = (λ f → λ x → fwd (h x) (f x)) :⇄: (λ f → λ x → bck (h x) (f x))
-  
+
+{-
+  Π≡ : ∀{α β} {A : Set α} {B₁ B₂ : A → Set β}
+    → ((x : A) → B₁ x ≡ B₂ x)
+    → ((x : A) → B₁ x) ≡ ((x : A) → B₂ x)
+  Π≡ {A = A} eq = {!!}
+-}
+
   {-
   open import Agda.Primitive
   open import Data.Bool

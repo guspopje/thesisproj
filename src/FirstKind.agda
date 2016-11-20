@@ -20,157 +20,157 @@ module FirstKind where
   infixr 4 _≣_
   infixr 3 _⊃_
 
-  data FK {α : Level} (A : Set α) : Set α where
+  data FK (A : Set) : Set where
     atom : A → FK A
     ~_ : FK A → FK A
     _∪_ : FK A → FK A → FK A
 
-  _⊃_ : ∀{α} {A : Set α} → FK A → FK A → FK A
+  _⊃_ : {A : Set} → FK A → FK A → FK A
   p ⊃ q = (~ p) ∪ q
 
-  _&_ : ∀{α} {A : Set α} → FK A → FK A → FK A
+  _&_ : {A : Set} → FK A → FK A → FK A
   p & q = ~ (~ p ∪ ~ q)
 
-  _≣_ : ∀{α} {A : Set α} → FK A → FK A → FK A
+  _≣_ : {A : Set} → FK A → FK A → FK A
   p ≣ q = (p ⊃ q) & (q ⊃ p)
 
-  data ProofFK {α : Level} {A : Set α} : FK A → Set α where
-    ptaut : (p : FK A) → ProofFK (p ∪ p ⊃ p)
-    padd : (p q : FK A) → ProofFK (q ⊃ p ∪ q)
-    pperm : (p q : FK A) → ProofFK (p ∪ q ⊃ q ∪ p)
-    passoc : (p q r : FK A) → ProofFK (p ∪ (q ∪ r) ⊃ q ∪ (p ∪ r))
-    psum : (p q r : FK A) → ProofFK ((q ⊃ r) ⊃ (p ∪ q ⊃ p ∪ r))
-    simp : {p q : FK A} → ProofFK (p ⊃ q) → ProofFK p → ProofFK q
+  module Proofs {A : Set} (Axioms : FK A → Set) where
+
+    data ProofFK : FK A → Set where
+      ptaut : (p : FK A) → ProofFK (p ∪ p ⊃ p)
+      padd : (p q : FK A) → ProofFK (q ⊃ p ∪ q)
+      pperm : (p q : FK A) → ProofFK (p ∪ q ⊃ q ∪ p)
+      passoc : (p q r : FK A) → ProofFK (p ∪ (q ∪ r) ⊃ q ∪ (p ∪ r))
+      psum : (p q r : FK A) → ProofFK ((q ⊃ r) ⊃ (p ∪ q ⊃ p ∪ r))
+      impl : {p q : FK A} → ProofFK (p ⊃ q) → ProofFK p → ProofFK q
+      axiom : {p : FK A} → Axioms p → ProofFK p
+
+    infixr 2 ⊢_
+    ⊢_ : FK A → Set
+    ⊢_ = ProofFK
+
+    infixr 4 _≣!_
+    _≣!_ : FK A → FK A → Set
+    p ≣! q = ProofFK (p ≣ q)
 
 
-{-
-    ptaut : ~ (p ∪ p) ∪ p
-    padd : ~ q ∪ (p ∪ q)
-    pperm : ~ (p ∪ q) ∪ (q ∪ p)
-    passoc : ~ (p ∪ (q ∪ r)) ∪ (
 
-    If we want ~ ~ p ⊃ p for *any* p, the last part of the proof must be mp.
     
-    If it's mp, then we're applying simp to something : X ⊃ (~ ~ p ⊃ p), and X.
+    {-
+    -- Replace atoms with propositions.
+    fkSub : ∀{α β} {A : Set α} {B : Set β} → (A → FK B) → FK A → FK B
+    fkSub f (atom x) = f x
+    fkSub f (~ p) = ~ (fkSub f p)
+    fkSub f (p ∪ q) = (fkSub f p) ∪ (fkSub f q)
+
+    -- fkSub preserves truth.
+    fkSubThm : ∀{α β} {A : Set α} {B : Set β} → {p : FK A} → (f : A → FK B) → ProofFK p → ProofFK (fkSub f p)
+    fkSubThm f (ptaut q) = ptaut (fkSub f q)
+    fkSubThm f (padd p q) = padd (fkSub f p) (fkSub f q)
+    fkSubThm f (pperm p q) = pperm (fkSub f p) (fkSub f q)
+    fkSubThm f (passoc p q r) = passoc (fkSub f p) (fkSub f q) (fkSub f r)
+    fkSubThm f (psum p q r) = psum (fkSub f p) (fkSub f q) (fkSub f r)
+    fkSubThm f (impl pq p) = impl (fkSubThm f pq) (fkSubThm f p)
+
+
+    -- Replace atoms with other atoms.
+    fkMap : {A B : Set} → (A → B) → FK A → FK B
+    fkMap f = fkSub (atom ∘ f)
+
+    -- fkMap preserves truth.
+    fkMapThm : {A B : Set} → {p : FK A} → (f : A → B) → ProofFK p → ProofFK (fkMap f p)
+    fkMapThm f = fkSubThm (atom ∘ f)
+    -}
     
--}
+    -- Assign a "logical value" (Bool) to a proposition, given assignments for the atoms.
+    eval : (A → Bool) → FK A → Bool
+    eval iatom (atom x) = iatom x
+    eval iatom (p ∪ q) = eval iatom p ∨ eval iatom q
+    eval iatom (~ p) = not (eval iatom p)
 
-  -- Replace atoms with propositions.
-  fkSub : ∀{α β} {A : Set α} {B : Set β} → (A → FK B) → FK A → FK B
-  fkSub f (atom x) = f x
-  fkSub f (~ p) = ~ (fkSub f p)
-  fkSub f (p ∪ q) = (fkSub f p) ∪ (fkSub f q)
+    -- If a proposition is provable, its interpretation is 'true' (regardless of interpretations of atoms).
+    provableTrue : {p : FK A} (iatom : A → Bool) (happyAxioms : ({q : FK A} → Axioms q → T (eval iatom q))) (proof : ProofFK p) → T (eval iatom p)
+    provableTrue iatom _ (ptaut p) with eval iatom p
+    ... | true = tt
+    ... | false = tt
+    provableTrue iatom _ (padd p q) with eval iatom p | eval iatom q
+    ... | true | true = tt
+    ... | true | false = tt
+    ... | false | true = tt
+    ... | false | false = tt
+    provableTrue iatom _ (pperm p q) with eval iatom p | eval iatom q
+    ... | true | true = tt
+    ... | true | false = tt
+    ... | false | true = tt
+    ... | false | false = tt
+    provableTrue iatom _ (passoc p q r) with eval iatom p | eval iatom q | eval iatom r
+    ... | true | true | true = tt
+    ... | true | true | false = tt
+    ... | true | false | true = tt
+    ... | true | false | false = tt
+    ... | false | true | true = tt
+    ... | false | true | false = tt
+    ... | false | false | true = tt
+    ... | false | false | false = tt
+    provableTrue iatom _ (psum p q r) with eval iatom p | eval iatom q | eval iatom r
+    ... | true | true | true = tt
+    ... | true | true | false = tt
+    ... | true | false | true = tt
+    ... | true | false | false = tt
+    ... | false | true | true = tt
+    ... | false | true | false = tt
+    ... | false | false | true = tt
+    ... | false | false | false = tt
+    provableTrue iatom ha (impl {p} {q} p⊃q-proof p-proof) with eval iatom p | provableTrue iatom ha p-proof | provableTrue iatom ha p⊃q-proof
+    ... | false | () | _
+    ... | true | _ | true-p⊃q = true-p⊃q
+    provableTrue iatom ha (axiom ax) = ha ax
 
-  -- fkSub preserves truth.
-  fkSubThm : ∀{α β} {A : Set α} {B : Set β} → {p : FK A} → (f : A → FK B) → ProofFK p → ProofFK (fkSub f p)
-  fkSubThm f (ptaut q) = ptaut (fkSub f q)
-  fkSubThm f (padd p q) = padd (fkSub f p) (fkSub f q)
-  fkSubThm f (pperm p q) = pperm (fkSub f p) (fkSub f q)
-  fkSubThm f (passoc p q r) = passoc (fkSub f p) (fkSub f q) (fkSub f r)
-  fkSubThm f (psum p q r) = psum (fkSub f p) (fkSub f q) (fkSub f r)
-  fkSubThm f (simp pq p) = simp (fkSubThm f pq) (fkSubThm f p)
+    {-
+    consistent : {p : FK A} → ProofFK p → ProofFK (~ p) → ⊥
+    consistent {p = p} p-proof ~p-proof with eval (const false) p | provableTrue (const false) p-proof | provableTrue (const false) ~p-proof
+    ... | true | _ | ()
+    ... | false | () | _
+    -}
 
-  
-  -- Replace atoms with other atoms.
-  fkMap : ∀{α β} {A : Set α} {B : Set β} → (A → B) → FK A → FK B
-  fkMap f = fkSub (atom ∘ f)
-
-  -- fkMap preserves truth.
-  fkMapThm : ∀{α β} {A : Set α} {B : Set β} → {p : FK A} → (f : A → B) → ProofFK p → ProofFK (fkMap f p)
-  fkMapThm f = fkSubThm (atom ∘ f)
-
-  -- Assign a "logical value" (Bool) to a proposition, given assignments for the atoms.
-  interpret : ∀{α} {A : Set α} → (A → Bool) → FK A → Bool
-  interpret iatom (atom x) = iatom x
-  interpret iatom (p ∪ q) = interpret iatom p ∨ interpret iatom q
-  interpret iatom (~ p) = not (interpret iatom p)
-
-  -- If a proposition is provable, its interpretation is 'true' (regardless of interpretations of atoms).
-  provableTrue : ∀{α} {A : Set α} {p : FK A} (iatom : A → Bool) (proof : ProofFK p) → T (interpret iatom p)
-  provableTrue iatom (ptaut p) with interpret iatom p
-  ... | true = tt
-  ... | false = tt
-  provableTrue iatom (padd p q) with interpret iatom p | interpret iatom q
-  ... | true | true = tt
-  ... | true | false = tt
-  ... | false | true = tt
-  ... | false | false = tt
-  provableTrue iatom (pperm p q) with interpret iatom p | interpret iatom q
-  ... | true | true = tt
-  ... | true | false = tt
-  ... | false | true = tt
-  ... | false | false = tt
-  provableTrue iatom (passoc p q r) with interpret iatom p | interpret iatom q | interpret iatom r
-  ... | true | true | true = tt
-  ... | true | true | false = tt
-  ... | true | false | true = tt
-  ... | true | false | false = tt
-  ... | false | true | true = tt
-  ... | false | true | false = tt
-  ... | false | false | true = tt
-  ... | false | false | false = tt
-  provableTrue iatom (psum p q r) with interpret iatom p | interpret iatom q | interpret iatom r
-  ... | true | true | true = tt
-  ... | true | true | false = tt
-  ... | true | false | true = tt
-  ... | true | false | false = tt
-  ... | false | true | true = tt
-  ... | false | true | false = tt
-  ... | false | false | true = tt
-  ... | false | false | false = tt
-  provableTrue iatom (simp {p} {q} p⊃q-proof p-proof) with interpret iatom p | provableTrue iatom p-proof | provableTrue iatom p⊃q-proof
-  ... | false | () | _
-  ... | true | _ | true-p⊃q = true-p⊃q
-  
-  consistent : ∀{α} {A : Set α} {p : FK A} → ProofFK p → ProofFK (~ p) → ⊥
-  consistent {p = p} p-proof ~p-proof with interpret (const false) p | provableTrue (const false) p-proof | provableTrue (const false) ~p-proof
-  ... | true | _ | ()
-  ... | false | () | _
-
-
-
-  _≣!_ : ∀{α} {A : Set α} → FK A → FK A → Set α
-  p ≣! q = ProofFK (p ≣ q)
-
-  module OneKind {α : Level} (A : Set α) where
 
     -- ⊃ is reflexive and transitive.
     ⊃-refl : (p : FK A) → ProofFK (p ⊃ p)
-    ⊃-refl p = (simp (simp (psum (~ p) (p ∪ p) p) (ptaut p)) (padd p p))
+    ⊃-refl p = (impl (impl (psum (~ p) (p ∪ p) p) (ptaut p)) (padd p p))
 
     ⊃-trans : (p q r : FK A) → ProofFK ((p ⊃ q) ⊃ ((q ⊃ r) ⊃ (p ⊃ r)))
-    ⊃-trans p q r = simp (passoc (~ (q ⊃ r)) (~ (p ⊃ q)) (p ⊃ r)) (psum (~ p) q r)
+    ⊃-trans p q r = impl (passoc (~ (q ⊃ r)) (~ (p ⊃ q)) (p ⊃ r)) (psum (~ p) q r)
 
     -- Compose two implications; a convenient weakening of ⊃-trans.
     _⊃⊃_ : {p q r : FK A} → ProofFK (p ⊃ q) → ProofFK (q ⊃ r) → ProofFK (p ⊃ r)
-    _⊃⊃_ {p = p} {q = q} {r = r} pq qr = simp (simp (⊃-trans p q r) pq) qr
+    _⊃⊃_ {p = p} {q = q} {r = r} pq qr = impl (impl (⊃-trans p q r) pq) qr
 
     -- The law of excluded middle, in two flavors for convenience.
     lem₁ : (p : FK A) → ProofFK (~ p ∪ p)
     lem₁ = ⊃-refl
   
     lem₂ : (p : FK A) → ProofFK (p ∪ ~ p)
-    lem₂ p = simp (pperm (~ p) p) (lem₁ p)
+    lem₂ p = impl (pperm (~ p) p) (lem₁ p)
 
     -- Double negation introduction and elimination.
     ~~-intro : (p : FK A) → ProofFK (p ⊃ ~ ~ p)
     ~~-intro p = lem₂ (~ p)
 
     ~~-elim : (p : FK A) → ProofFK ((~ ~ p) ⊃ p)
-    ~~-elim p = simp
+    ~~-elim p = impl
       (pperm p (~ ~ ~ p))
-      (simp
-        (simp
+      (impl
+        (impl
           (psum p (~ p) (~ ~ ~ p))
           (~~-intro (~ p)))
         (lem₂ p))
 
     -- Contraposition, and a convenient weakened helper.
     contra : (p q : FK A) → ProofFK ((p ⊃ q) ⊃ (~ q ⊃ ~ p))
-    contra p q = (simp (psum (~ p) q (~ ~ q)) (~~-intro q)) ⊃⊃ (pperm (~ p) (~ ~ q))
+    contra p q = (impl (psum (~ p) q (~ ~ q)) (~~-intro q)) ⊃⊃ (pperm (~ p) (~ ~ q))
 
-    contra' : (p q : FK A) → ProofFK (p ⊃ q) → ProofFK (~ q ⊃ ~ p)
-    contra' p q = simp (contra p q)
+    contra' : {p q : FK A} → ProofFK (p ⊃ q) → ProofFK (~ q ⊃ ~ p)
+    contra' {p = p} {q = q} = impl (contra p q)
 
     -- A flipped version of padd, for convenience.
     padd' : (p q : FK A) → ProofFK (p ⊃ p ∪ q)
@@ -182,24 +182,24 @@ module FirstKind where
 
     -- Some properties of &.
     &-refl : (p : FK A) → ProofFK (p ⊃ p & p)
-    &-refl p = simp
-      (simp
+    &-refl p = impl
+      (impl
         (psum (~ p) (~ ~ p) (p & p))
-        (simp
+        (impl
           (contra (~ p ∪ ~ p) (~ p))
           (ptaut (~ p))))
       (lem₂ (~ p))
 
     &-sym : (p q : FK A) → ProofFK (p & q ⊃ q & p)
-    &-sym p q = simp
+    &-sym p q = impl
       (pperm (q & p) (~ (p & q)))
       ((pperm (~ q) (~ p)) ⊃⊃ (~~-intro (~ p ∪ ~ q)))
 
     &-elim₂ : (p q : FK A) → ProofFK (p & q ⊃ q)
-    &-elim₂ p q = simp
+    &-elim₂ p q = impl
       (pperm q (~ (p & q)))
-      (simp
-        (simp
+      (impl
+        (impl
           (psum q (~ q) (~ (p & q)))
           ((padd (~ p) (~ q)) ⊃⊃ (~~-intro (~ p ∪ ~ q))))
         (lem₂ q))
@@ -208,23 +208,23 @@ module FirstKind where
     &-elim₁ p q = (&-sym p q) ⊃⊃ (&-elim₂ q p)
 
     &-intro : (p q : FK A) → ProofFK (p ⊃ (q ⊃ (p & q)))
-    &-intro p q = simp
-      (simp
+    &-intro p q = impl
+      (impl
         (psum (~ p) (p & q ∪ ~ q) (~ q ∪ p & q))
         (pperm (p & q) (~ q)))
-      (simp
+      (impl
         (passoc (p & q) (~ p) (~ q))
         (lem₁ (~ p ∪ ~ q)))
 
     -- Conveniences
     &-elim₁' : {p q : FK A} → ProofFK (p & q) → ProofFK p
-    &-elim₁' {p = p} {q = q} = simp (&-elim₁ p q)
+    &-elim₁' {p = p} {q = q} = impl (&-elim₁ p q)
     
     &-elim₂' : {p q : FK A} → ProofFK (p & q) → ProofFK q
-    &-elim₂' {p = p} {q = q} = simp (&-elim₂ p q)
+    &-elim₂' {p = p} {q = q} = impl (&-elim₂ p q)
 
     _&!_ : {p q : FK A} → ProofFK p → ProofFK q → ProofFK (p & q)
-    _&!_ {p = p} {q = q} p! q! = simp (simp (&-intro p q) p!) q!    
+    _&!_ {p = p} {q = q} p! q! = impl (impl (&-intro p q) p!) q!    
 
     
 
@@ -236,8 +236,14 @@ module FirstKind where
     ≣-sym : (p q : FK A) → ProofFK (p ≣ q ⊃ q ≣ p)
     ≣-sym p q = &-sym (p ⊃ q) (q ⊃ p)
 
+    ≣-sym' : {p q : FK A} → ⊢ p ≣ q → ⊢ q ≣ p
+    ≣-sym' {p} {q} eq = impl (≣-sym p q) eq
+
     --≣-trans : (p q r : FK A) → ProofFK (p ≣ q ⊃ (q ≣ r ⊃ p ≣ r))
     --≣-trans p q r = {!!}
+
+    ≣-trans' : {p q r : FK A} → ⊢ p ≣ q → ⊢ q ≣ r → ⊢ p ≣ r
+    ≣-trans' pq qr = (&-elim₁' pq ⊃⊃ &-elim₁' qr) &! (&-elim₂' qr ⊃⊃ &-elim₂' pq)
 
     ≣-supersym : (p q : FK A) → ProofFK ((p ≣ q) ≣ (q ≣ p))
     ≣-supersym p q = (≣-sym p q) &! (≣-sym q p)
@@ -246,28 +252,81 @@ module FirstKind where
     --hmm : (p q : FK A) → (ProofFK p → ProofFK q) → ProofFK (p ⊃ q)
     --hmm p q f = {!!}
 
+{-
+  ~p₁ ≣ ~p₂
+= ~p₁ ⊃ ~p₂ & ~p₂ ⊃ ~p₁
+= ~~p₁ ∨ ~p₂ & ~~p₂ ∨ ~p₁
+-}
+
+-- ~p ∨ q₁   ~p ∨ q₂
+-- &-intro q₁ q₂ :      ⊢ q₁ ⊃ (q₂ ⊃ (q₁ & q₂))
+--
+{-
+    ⊃-&' : (p q₁ q₂ : FK A) → ⊢ p ⊃ q₁ → ⊢ p ⊃ q₂ → ⊢ p ⊃ (q₁ & q₂)
+    ⊃-&' p q₁ q₂ p⊃q₁ p⊃q₂ = {!!} 
+
+    
+--    &-⊃ : (p₁ p₂ p₃ p₄ : FK A) → ⊢ (p₁ ⊃ p₃) ⊃ (p₂ ⊃ p₄) ⊃ (p₁ & p₂ ⊃ p₃ & p₄)
+    &-⊃' : (p₁ p₂ p₃ p₄ : FK A) → ⊢ p₁ ⊃ p₃ → ⊢ p₂ ⊃ p₄ → ⊢ (p₁ & p₂ ⊃ p₃ & p₄)
+    &-⊃' p₁ p₂ p₃ p₄ 1⊃3 2⊃4 = {!!}
+
+    ≣-~ : (p₁ p₂ : FK A) → ⊢ (p₁ ≣ p₂) ⊃ (~ p₁ ≣ ~ p₂)
+    ≣-~ p₁ p₂ = (≣-sym p₁ p₂) ⊃⊃ &-⊃' (p₂ ⊃ p₁) (p₁ ⊃ p₂) (~ p₁ ⊃ ~ p₂) (~ p₂ ⊃ ~ p₁) (contra p₂ p₁) (contra p₁ p₂)
+-}
+
+    -- Contexts and substitution
+    data Context : Set where
+      ∙ : Context
+      _~∙ : Context → Context
+      _⟨∙∪_⟩ : Context → FK A → Context
+      _⟨_∪∙⟩ : Context → FK A → Context
+
+    _◂_ : Context → FK A → FK A
+    ∙ ◂ p = p
+    (c ~∙) ◂ p = c ◂ (~ p)
+    (c ⟨∙∪ q ⟩) ◂ p = c ◂ (p ∪ q)
+    (c ⟨ q ∪∙⟩) ◂ p = c ◂ (q ∪ p)
+
+{-
+    ≣-sub : (p₁ p₂ : FK A) → (c : Context) → ⊢ p₁ ≣ p₂ ⊃ (c ◂ p₁) ≣ (c ◂ p₂)
+    ≣-sub p₁ p₂ ∙ = ⊃-refl (p₁ ≣ p₂)
+    ≣-sub p₁ p₂ (c ~∙) = (≣-~ p₁ p₂) ⊃⊃ (≣-sub (~ p₁) (~ p₂) c)
+    ≣-sub p₁ p₂ (c ⟨∙∪ q ⟩) = {!!}
+    ≣-sub p₁ p₂ (c ⟨ q ∪∙⟩) = {!!}
+-}    
+    {-
+
+have: for all q₁, q₂, c : ⊢ (q₁ ⊃ q₂) & (q₂ ⊃ q₁) ⊃ (c ◂ q₁ ⊃ c ◂ q₂) & (c ◂ q₂ ⊃ c ◂ q₁)
+want: ⊢ (p₁ ⊃ p₂) & (p₂ ⊃ p₁) ⊃ (c ◂ ~p₁ ⊃ c ◂ ~p₂) & (c ◂ ~p₂ ⊃ c ◂ ~p₁)
+
+recursive call using ~p₁ and ~p₂ gives us:
+⊢ (~p₁ ⊃ ~p₂) & (~p₂ ⊃ ~p₁) ⊃ (c ◂ ~p₁ ⊃ c ◂ ~p₂) & (c ◂ ~p₂ ⊃ c ◂ ~p₁)
+
+
+    -}
+
 
     module NF where
 
       open import Data.List.NonEmpty
 
-      data Literal : Set α where
+      data Literal : Set where
         +_ : A → Literal
         -_ : A → Literal
 
-      L : Set α → Set α
+      L : Set → Set
       L = List⁺
 
-      Conj : Set α
+      Conj : Set
       Conj = L Literal
 
-      Disj : Set α
+      Disj : Set
       Disj = L Literal
 
-      DNF : Set α
+      DNF : Set
       DNF = L Disj
 
-      CNF : Set α
+      CNF : Set
       CNF = L Conj
 
       literal-interpret : Literal → FK A
@@ -297,7 +356,15 @@ module FirstKind where
       mix : L (L Literal) → L (L Literal) → L (L Literal)
       mix xs ys = concat (map (λ x → map (_⁺++⁺_ x) ys) xs)
 
-      -- Mutually-recursive
+{-
+      conj-++ : (c₁ c₂ : Conj) → ⊢ conj-interpret (c₁ ⁺++⁺ c₂) ≣ (conj-interpret c₁) ∪ (conj-interpret c₂)
+      conj-++ c₁ c₂ = {!!}
+-}
+
+
+
+
+      -- Mutually recursive
       dnf : (p : FK A) → DNF
       cnf : (p : FK A) → CNF
 
@@ -309,10 +376,16 @@ module FirstKind where
       cnf (~ p) = dual (dnf p)
       cnf (p₁ ∪ p₂) = dual (mix (dual (cnf p₁)) (dual (cnf p₂)))
 
-      --dnf-works : (p : FK A) → dnf-interpret (dnf p) ≣! p
-      --cnf-works : (p : FK A) → cnf-interpret (cnf p) ≣! p
+{-
+      dnf-works : (p : FK A) → ⊢ dnf-interpret (dnf p) ≣ p
+      cnf-works : (p : FK A) → ⊢ cnf-interpret (cnf p) ≣ p
 
-      --dnf-works = {!!}
-      --cnf-works = {!!}
+      dnf-works (atom a) = ≣-refl (atom a)
+      dnf-works (~ p) = {!!}
+      dnf-works (p₁ ∪ p₂) = {!!}
 
-  open OneKind public
+      cnf-works (atom a) = ≣-refl (atom a)
+      cnf-works (~ p) = {!!}
+      cnf-works (p₁ ∪ p₂) = {!!}
+-}
+  --open OneKind public

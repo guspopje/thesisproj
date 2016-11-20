@@ -22,14 +22,16 @@ module SecondKind where
   open import Function
   --open import Common using (flop)
   open import Common
+
+  import FirstKind
   
-  open import FirstKind renaming (_⊃_ to _⊃₁_ ; _&_ to _&₁_ ; _≣_ to _≣₁_ ;  _≣!_ to _≣!₁_ ; ≣-refl to ≣₁-refl ; ≣-sym to ≣₁-sym)
+  --open import FirstKind renaming (_⊃_ to _⊃₁_ ; _&_ to _&₁_ ; _≣_ to _≣₁_ ;  _≣!_ to _≣!₁_ ; ≣-refl to ≣₁-refl ; ≣-sym to ≣₁-sym ; module Context to Context₁ ; Context to Context₁ ; _◂_ to _◂₁_ ; ⊢_ to ⊢₁)
 
   -- QH with any sort of atoms.
-  module QH-Pure {α : Level} (Atom : ℕ → Set α) where
+  module QH-Pure (Atom : ℕ → Set) where
 
     -- QH (sub-)propositions, indexed by a limit on de bruijn indices.  
-    data QH (n : ℕ) : Set α where
+    data QH (n : ℕ) : Set where
       atom : Atom n → QH n
       ~_ : QH n → QH n
       _∪_ : QH n → QH n → QH n
@@ -54,8 +56,8 @@ module SecondKind where
     p ≣ q = (p ⊃ q) & (q ⊃ p)
     
     -- Well-formed propositions.
-    QH0 : Set α
-    QH0 = QH zero
+    QH₀ : Set
+    QH₀ = QH zero
 
     -- Quantifier-free (sub)propositions.
     elementary : {n : ℕ} → QH n → Set
@@ -66,27 +68,27 @@ module SecondKind where
     elementary ([-] _) = ⊥
 
     -- Map an *elementary* proposition of the second kind to a proposition of the first kind
-    mapSF : ∀{β} {C : Set β} → (Atom zero → C) → (p : QH0) → elementary p → FK C
-    mapSF f (atom a) _ = atom (f a)
-    mapSF f (~ p) e = ~ (mapSF f p e)
-    mapSF f (p ∪ q) (elp , elq) = (mapSF f p elp) ∪ (mapSF f q elq)
+    mapSF : {C : Set} → (Atom zero → C) → (p : QH₀) → elementary p → FirstKind.FK C
+    mapSF f (atom a) _ = FirstKind.atom (f a)
+    mapSF f (~ p) e = FirstKind.~ (mapSF f p e)
+    mapSF f (p ∪ q) (elp , elq) = (mapSF f p elp) FirstKind.∪ (mapSF f q elq)
     mapSF f ([+] _) ()
     mapSF f ([-] _) ()
 
     -- Map a prop of the first kind to one of the second kind
-    mapFS : ∀{β} {C : Set β} → (C → Atom zero) → FK C → QH0
-    mapFS f (atom a) = atom (f a)
-    mapFS f (~ p) = ~ (mapFS f p)
-    mapFS f (p ∪ q) = (mapFS f p) ∪ (mapFS f q)
+    mapFS : {C : Set} → (C → Atom zero) → FirstKind.FK C → QH₀
+    mapFS f (FirstKind.atom a) = atom (f a)
+    mapFS f (FirstKind.~ p) = ~ (mapFS f p)
+    mapFS f (p FirstKind.∪ q) = (mapFS f p) ∪ (mapFS f q)
 
 
 
     -- Canonical mapping of second kind to first kind
-    lower : (p : QH0) → elementary p → FK (Atom zero)
+    lower : (p : QH₀) → elementary p → FirstKind.FK (Atom zero)
     lower = mapSF id
 
     -- Canonical mapping of first kind to second kind
-    raise : FK (Atom zero) → QH0
+    raise : FirstKind.FK (Atom zero) → QH₀
     raise = mapFS id
 
 
@@ -100,7 +102,7 @@ module SecondKind where
     -- A context for identifying a location ("hole") in a QH, à la zipper.
     -- The first argument to each constructor is the parent context.
     -- Indexed by the hole index limit, and the resulting proposition's index limit (see _◂_).
-    data Context : ℕ → ℕ → Set α where
+    data Context : ℕ → ℕ → Set where
       ∙ : {n : ℕ} → Context n n
       _~∙ : {m n : ℕ} → Context m n → Context m n
       _⟨∙∪_⟩ : {m n : ℕ} → Context m n → QH m → Context m n
@@ -119,7 +121,7 @@ module SecondKind where
     (c [-]∙) ◂ p = c ◂ ([-] p)
 
 
-    data Somewhere {n : ℕ} (R : {m : ℕ} → QH m → QH m → Set) : QH n → QH n → Set α where
+    data Somewhere {n : ℕ} (R : {m : ℕ} → QH m → QH m → Set) : QH n → QH n → Set where
         at : {m : ℕ} {Φ₁ Φ₂ : QH m} → (c : Context m n) → R Φ₁ Φ₂ → Somewhere R (c ◂ Φ₁) (c ◂ Φ₂)
 
 
@@ -164,7 +166,8 @@ module SecondKind where
   -- Code where we have QH's with different atom types.
   module MixedAtom where
     open QH-Pure
-   
+
+    {-
     -- Depth-dependent map.
     mapQH' : ∀{α β γ} {A : ℕ → Set α} {B : ℕ → Set β} {C : ℕ → Set γ} {n : ℕ} (s : ∀{k} → C k → C (suc k)) → C n → (f : ∀{k} → C k → A k → B k) → QH A n → QH B n
     mapQH' s i f (atom a) = atom (f i a)
@@ -184,7 +187,18 @@ module SecondKind where
     -- Substitute a QH in place of the atoms of another. Monadic bind.
     subQH : ∀{α β} {A : ℕ → Set α} {B : ℕ → Set β} {n : ℕ} (f : {k : ℕ} → A k → QH B k) → QH A n → QH B n
     subQH f = joinQH ∘ (mapQH f)
-
+    -}
+    -- Depth-dependent map.
+    mapQH' : {A : ℕ → Set} {B : ℕ → Set} {C : ℕ → Set} {n : ℕ} (s : ∀{k} → C k → C (suc k)) → C n → (f : ∀{k} → C k → A k → B k) → QH A n → QH B n
+    mapQH' s i f (atom a) = atom (f i a)
+    mapQH' s i f (~ p) = ~ (mapQH' s i f p)
+    mapQH' s i f (p ∪ q) = (mapQH' s i f p) ∪  (mapQH' s i f q)
+    mapQH' {n} s i f ([+] p) = [+] (mapQH' s (s i) f p)
+    mapQH' {n} s i f ([-] p) = [-] (mapQH' s (s i) f p) 
+    
+    -- Map.
+    mapQH : {A : ℕ → Set} {B : ℕ → Set} {n : ℕ} → ({k : ℕ} → A k → B k) → QH A n → QH B n
+    mapQH f = mapQH' {C = const ⊤} id tt (const f)
 
 
     
@@ -275,7 +289,6 @@ module SecondKind where
     -- Free De Bruijn indices will be incremented with this insertion in mind.
     bind : {n : ℕ} → X → Fin (suc n) → QH n → QH (suc n)
     bind x = QHrec' suc (λ {k} _ _ → QH (suc k))
-        --(λ i a → atom (Atomic.bind atomic x i a))
         (λ i a → atom (A.r→a x i (A.ξ (toℕ i) a)))
         (λ i → ~_)
         (λ i → _∪_)
@@ -285,18 +298,21 @@ module SecondKind where
     bind₀ : {n : ℕ} → X → QH n → QH (suc n)
     bind₀ x = bind x zero
 
+{-
     [+_]_ : {n : ℕ} → X → QH n → QH n
     [+ x ] p = [+] (bind₀ x p)
     
     [-_]_ : {n : ℕ} → X → QH n → QH n
     [- x ] p = [-] (bind₀ x p)
-
+-}
 
     TicketSystem : Set₁
-    TicketSystem = QH0 → Set
+    TicketSystem = QH₀ → Set
 
     -- Proofs
     module Proofs (Ticket : TicketSystem) where 
+
+      module FKP = FirstKind.Proofs {A = Atom zero} (λ _ → ⊥)
 
       -- Rules of passage (p.225; the set on p.74 is incomplete)
       data Passage : {n : ℕ} → QH n → QH n → Set where
@@ -317,107 +333,33 @@ module SecondKind where
       
 
       -- See "Rules of Reasoning", p74
-      data ProofQH : QH0 → Set₁ where
-        fromFK : (p : QH0) (e : elementary p)
-          → ProofFK (lower p e)
+      data ProofQH : QH₀ → Set₁ where
+        fromFK : (p : QH₀) (e : elementary p)
+          → FKP.⊢ (lower p e)
           → ProofQH p
-        passage : {n : ℕ} {Φ₁ Φ₂ : QH0} → Somewhere Passage Φ₁ Φ₂
+        passage : {n : ℕ} {Φ₁ Φ₂ : QH₀} → Somewhere Passage Φ₁ Φ₂
           → ProofQH Φ₁
           → ProofQH Φ₂
-        gen₁ : {p : QH0} (x : X)
+        gen₁ : {p : QH₀} (x : X)
           → ProofQH p
-          → ProofQH ([+ x ] p)
-        gen₂ : {p : QH0} (x y : X)
+          → ProofQH ([+] bind₀ x p)
+        gen₂ : {p : QH₀} (x y : X)
           → ProofQH (sub y x p)
-          → ProofQH ([- y ] p)
-        simp : {p : QH0}
+          → ProofQH ([-] bind₀ y p)
+        simp : {p : QH₀}
           → ProofQH (p ∪ p)
           → ProofQH p
-        mp : {p q : QH0}
+        mp : {p q : QH₀}
           → ProofQH (p ⊃ q)
           → ProofQH p
           → ProofQH q
-        external : {p : QH0}
+        external : {p : QH₀}
           → Ticket p
           → ProofQH p
 
 
       -- Syntactic sugar.
       infix 10 ⊢_
-      ⊢_ : QH0 → Set₁
+      ⊢_ : QH₀ → Set₁
       ⊢_ = ProofQH
 
-
-    {-
-      module NF where
-
-        open import Data.List.NonEmpty
-
-        data Literal (n : ℕ) : Set where
-          +_ : Atom n → Literal n
-          -_ : Atom n → Literal n
-
-        L : Set → Set
-        L = List⁺
-
-        Conj : ℕ → Set
-        Conj n = L (Literal n)
-
-        Disj : ℕ → Set
-        Disj n = L (Literal n)
-
-        DNF : ℕ → Set
-        DNF n = L (Conj n)
-
-        CNF : ℕ → Set
-        CNF n = L (Conj n)
-
-        literal-interpret : {n : ℕ} → Literal n → QH n
-        literal-interpret (+ a) = atom a
-        literal-interpret (- a) = ~ (atom a)
-
-        conj-interpret : {n : ℕ} → Conj n → QH n
-        conj-interpret = (foldr₁ _&_) ∘ (map literal-interpret)
-
-        disj-interpret : {n : ℕ} → Conj n → QH n
-        disj-interpret = (foldr₁ _∪_) ∘ (map literal-interpret)
-
-        dnf-interpret : {n : ℕ} → DNF n → QH n
-        dnf-interpret = (foldr₁ _∪_) ∘ (map conj-interpret)
-
-        cnf-interpret : {n : ℕ} → DNF n → QH n
-        cnf-interpret = (foldr₁ _&_) ∘ (map disj-interpret)
-
-        negate : {n : ℕ} → Literal n → Literal n
-        negate (+ a) = - a
-        negate (- a) = + a
-
-        dual : {n : ℕ} → L (L (Literal n)) → L (L (Literal n))
-        dual = map (map negate)
-
-        -- mix [A, B, C] [D, E, F] = [A++D, A++E, A++F, B++D, B++E, ...]
-        mix : {n : ℕ} → L (L (Literal n)) → L (L (Literal n)) → L (L (Literal n))
-        mix xs ys = concat (map (λ x → map (_⁺++⁺_ x) ys) xs)
-
-        -- Mutually-recursive
-        dnf : {n : ℕ} → (p : QH n) → elementary p → DNF n
-        cnf : {n : ℕ} → (p : QH n) → elementary p → DNF n
-
-        dnf (atom a) _ = [ [ + a ] ]
-        dnf (~ p) e = dual (cnf p e)
-        dnf (p₁ ∪ p₂) e = (dnf p₁ (proj₁ e)) ⁺++⁺ (dnf p₂ (proj₂ e))
-        dnf ([+] p) ()
-        dnf ([-] p) ()
-
-        cnf (atom a) _ = [ [ + a ] ]
-        cnf (~ p) e = dual (dnf p e)
-        cnf (p₁ ∪ p₂) e = dual (mix (dual (cnf p₁ (proj₁ e))) (dual (cnf p₂ (proj₂ e))))
-        cnf ([+] p) ()
-        cnf ([-] p) ()
-
-        dnf-works : {n : ℕ} → (p : QH n) → (e : elementary p) → dnf-interpret (dnf p e) ∼ p
-        cnf-works : {n : ℕ} → (p : QH n) → (e : elementary p) → cnf-interpret (cnf p e) ∼ p
-
-        dnf-works = {!!}
-        cnf-works = {!!}
--}

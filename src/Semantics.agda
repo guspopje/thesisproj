@@ -8,7 +8,7 @@ module Semantics {X : Set} {X-dec : Decidable {A = X} _≡_ } where
   open import Data.Nat hiding (_⊔_)
   open import Data.Nat.Properties using (m≢1+m+n)
   open import Data.Nat.Properties.Simple using (+-comm)
-  open import Data.Fin using (Fin)
+  open import Data.Fin using (Fin ; toℕ)
   open import Data.Bool
   open import Data.Vec
   open import Data.Product
@@ -42,6 +42,9 @@ module Semantics {X : Set} {X-dec : Decidable {A = X} _≡_ } where
   _∷ₑ_ : {n : ℕ} → ℕ → Env n → Env (suc n)
   _∷ₑ_ a (r , as) = (r , a ∷ as)
 
+  env-insert : {n : ℕ} → Fin (suc n) → ℕ → Env n → Env (suc n)
+  env-insert i aᵢ (r , as) = (r , insert i aᵢ as)
+
   adjustReal : {n : ℕ} → X → ℕ → Env n → Env n
   adjustReal x₀ a (reals , appas) = ((λ x → if ⌊ X-dec x x₀ ⌋ then a else reals x) , appas)
 
@@ -56,6 +59,7 @@ module Semantics {X : Set} {X-dec : Decidable {A = X} _≡_ } where
   adjustReal≠ x₀ a e x x≢x₀ with X-dec x x₀
   ... | yes x≡x₀ = contradiction x≡x₀ x≢x₀
   ... | no  _    = refl
+
 
   {-
   changeReal : {n : ℕ} → X → ℕ → Env n → Env n
@@ -390,20 +394,34 @@ module Semantics {X : Set} {X-dec : Decidable {A = X} _≡_ } where
         h7 : (x : X) → Ticket ((atom ((real x) == tzero)) ∪ ([-] (atom ((real x) == (tsuc (appa zero))))))
   -}
 
-  gen₁-helper-term : {n : ℕ} (x : X) (t : Term n) (e : Env n) (a : ℕ) →
-    ⟦ t ⟧t (adjustReal x a e) ≡ ⟦ T.r→a x Data.Fin.zero (T.ξ zero t) ⟧t (a ∷ₑ e)
+  gen₁-helper-term : {n : ℕ} (x : X) (i : Fin (suc n)) (t : Term n) (e : Env n) (a : ℕ) →
+    ⟦ t ⟧t (adjustReal x a e) ≡ ⟦ T.r→a x i (T.ξ (toℕ i) t) ⟧t (env-insert i a e)
   gen₁-helper-term x t e a = {!!}
 
-  gen₁-helper : {n : ℕ} (x : X) (p : QH n) (e : Env n) (a : ℕ) →
-    ⟦ p ⟧* (adjustReal x a e) ≡ ⟦ bind₀ x p ⟧* (a ∷ₑ e)
-  gen₁-helper x (atom (t₁ == t₂)) e a = cong (¬_ ∘ ¬_)
+{-
+  
+-}
+
+  gen₁-helper : {n : ℕ} (x : X) (i : Fin (suc n)) (p : QH n) (e : Env n) (a : ℕ) →
+    ⟦ p ⟧* (adjustReal x a e) ≡ ⟦ bind x i p ⟧* (env-insert i a e)
+  gen₁-helper x i (atom (t₁ == t₂)) e a = cong (¬_ ∘ ¬_)
     (cong₂ _≡_
-      (gen₁-helper-term x t₁ e a)
-      (gen₁-helper-term x t₂ e a))
-  gen₁-helper x (~ p) e a = cong ¬_ (gen₁-helper x p e a)
-  gen₁-helper x (p₁ ∪ p₂) e a = cong₂ (λ s₁ s₂ → ¬ (¬ s₁ × ¬ s₂)) (gen₁-helper x p₁ e a) (gen₁-helper x p₂ e a)
-  gen₁-helper x ([+] p) e a = {!!}
-  gen₁-helper x ([-] p) e a = {!!}
+      (gen₁-helper-term x i t₁ e a)
+      (gen₁-helper-term x i t₂ e a))
+  gen₁-helper x i (~ p) e a = cong ¬_ (gen₁-helper x i p e a)
+  gen₁-helper x i (p₁ ∪ p₂) e a = cong₂ (λ s₁ s₂ → ¬ (¬ s₁ × ¬ s₂)) (gen₁-helper x i p₁ e a) (gen₁-helper x i p₂ e a)
+  gen₁-helper x i ([+] p) e a = {!!}
+  gen₁-helper x i ([-] p) e a = {!!}
+
+  {-
+    LHS:
+      (a' : ℕ) → (⟦ p ⟧* (a' ∷ (adjustReal x a e)))
+
+    RHS:
+      ⟦ bind x i ([+] p) ⟧* (env-insert i a e)
+      = ⟦ [+] (bind x (suc i) p) ⟧* (env-insert i a e)
+      (a' : ℕ) → (⟦ bind x (suc i) p ⟧* (a' ∷ (env-insert i a e)))
+-}
 
   {-
     proofyx : ⊢ sub y x p    ⊢ p(x,x)
@@ -414,7 +432,7 @@ module Semantics {X : Set} {X-dec : Decidable {A = X} _≡_ } where
   soundness* : {p : QH0} → ProofQH p → (e : Env zero) → ⟦ p ⟧* e
   soundness* (fromFK p elem proof) e       = {!!}
   soundness* (passage (at c pass) proof) e = fwd (_◂-⇄_ c (passage-sound pass) e) (soundness* proof e)
-  soundness* (gen₁ {p} x proof) e          = λ a → subst id (gen₁-helper x p e a)
+  soundness* (gen₁ {p} x proof) e          = λ a → subst id (gen₁-helper x Data.Fin.zero p e a)
                                                (soundness* proof (adjustReal x a e))
   soundness* (gen₂ {p} x y proofyx) e      = {!!}
   soundness* (simp {p} p∪pProof) e         = raa* e p (λ ¬⟦p⟧* → (soundness* p∪pProof e) (¬⟦p⟧* , ¬⟦p⟧*))

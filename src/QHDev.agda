@@ -13,7 +13,7 @@ open import Relation.Nullary.Decidable
 open import Relation.Nullary.Sum
 
 module QHDev (atomic : SecondKind.Atomic) (ts : SecondKind.QH-Atomic.TicketSystem atomic) where
-  open import FirstKind renaming (_⊃_ to _⊃₁_ ; _&_ to _&₁_ ; _≣_ to _≣₁_ ;  _≣!_ to _≣!₁_ ; ≣-refl to ≣₁-refl ; ≣-sym to ≣₁-sym) hiding (interpret)
+  open import FirstKind renaming (_⊃_ to _⊃₁_ ; _&_ to _&₁_ ; _≣_ to _≣₁_ ;  _≣!_ to _≣!₁_ ; ≣-refl to ≣₁-refl ; ≣-sym to ≣₁-sym ; module Context to Context₁; Context to Context₁ ; _◂_ to _◂₁_ ; ⊢_ to ⊢₁_) hiding (interpret)
   open SecondKind
   open SecondKind.QH-Atomic atomic
   open Proofs ts
@@ -32,11 +32,11 @@ module QHDev (atomic : SecondKind.Atomic) (ts : SecondKind.QH-Atomic.TicketSyste
     raise-elem = mapFS-elem id
 
     -- For elementary propositions of the second kind, (raise ∘ lower) p = p
-    raise∘lower : (p : QH0) → (e : elementary p) → raise (lower p e) ≡ p
+    raise∘lower : (p : QH₀) → (e : elementary p) → raise (lower p e) ≡ p
     raise∘lower (atom a) e = refl
-    raise∘lower (~ p) e = cong {A = QH0} {B = QH0} ~_
+    raise∘lower (~ p) e = cong {A = QH₀} {B = QH₀} ~_
       (raise∘lower p e)
-    raise∘lower (p₁ ∪ p₂) e = cong₂ {A = QH0} {B = QH0} {C = QH0} _∪_
+    raise∘lower (p₁ ∪ p₂) e = cong₂ {A = QH₀} {B = QH₀} {C = QH₀} _∪_
       (raise∘lower p₁ (proj₁ e))
       (raise∘lower p₂ (proj₂ e))
     raise∘lower ([+] p) ()
@@ -283,16 +283,55 @@ module QHDev (atomic : SecondKind.Atomic) (ts : SecondKind.QH-Atomic.TicketSyste
   open PrenexMod public 
 
 {-
-  If pf is an identity of the first kind, we can prove ⊢ interpret pf args as long as all args are elementary.
+  -- A prenex variant with named variables and QH₀.
+  module Prenex₀Mod where
 
-Purpose of thm 4.1?
+    open Atomic atomic using (X)
+  
+    data Prenex₀ : Set where
+      M : (p : QH₀) → elementary p → Prenex₀ p
+      [+_]_ : {p : QH₀} (x : X) (pre : Prenex₀ p) → Prenex₀ ([+] bind₀ x p)
+      [-_]_ : {p : QH₀} (x : X) (pre : Prenex₀ p) → Prenex₀ ([-] bind₀ x p)
+      via-pass : {p q : QH₀} → Somewhere {zero} Passage p q → Prenex₀ q → Prenex₀ p
 
-Via fromFK we can prove that replacing the atoms of a true FK with *elementary* QH0 is ok.
-Want to substitute it with arbitrary QH0 (well, prenex form).
-If no more than one positive and one negative instance of each, we can stuff in a [+ x ] or [- x ].
+    interpret-prenex₀ : {p : QH₀} → Prenex₀ p → QH₀
+    interpret-prenex₀ (M p _) = p
+    interpret-prenex₀ ([+ x ] pre) = [+] bind₀ x (interpret-prenex₀ pre)
+    interpret-prenex₀ ([- x ] pre) = [-] bind₀ x (interpret-prenex₀ pre)
+    interpret-prenex₀ (via-pass _ pre) = interpret-prenex₀ pre
 
-Wait, why can't I just bubble out all quantifiers? ξ?
+{-
+    bind₀-pass : {n : ℕ} {p₁ p₂ : QH n} → (x : X) → Passage p₁ p₂ → Passage (bind₀ x p₁) (bind₀ x p₂)
+    bind₀-pass x pass₁ = pass₁
+    bind₀-pass x pass₂ = pass₂
+    bind₀-pass x pass₃ = {!!}
+    bind₀-pass x pass₄ = {!!}
+    bind₀-pass x pass₅ = {!!}
+    bind₀-pass x pass₆ = {!!}
+    bind₀-pass x (vice-versa pass') = vice-versa (bind₀-pass x pass')
+
+    bind₀-SP : {n : ℕ} {p₁ p₂ : QH n} → (x : X) → SP p₁ p₂ → SP (bind₀ x p₁) (bind₀ x p₂)
+    bind₀-SP x (at ∙ pass) = at ∙ (bind₀-pass x pass)
+    bind₀-SP x _ = {!!}
+
+    bind₀-SP⋆ : {n : ℕ} {p₁ p₂ : QH n} → (x : X) → SP⋆ p₁ p₂ → SP⋆ (bind₀ x p₁) (bind₀ x p₂)
+    bind₀-SP⋆ x refl⋆ = refl⋆
+    bind₀-SP⋆ x (trans⋆ sp sps) = trans⋆ (bind₀-SP x sp) (bind₀-SP⋆ x sps)
+
+    prenex₀-passages : {p : QH₀} (pre : Prenex₀ p) → SP⋆ (interpret-prenex₀ pre) p
+    prenex₀-passages (M p _) = refl⋆
+    prenex₀-passages ([+ x ] pre) = (∙ [+]∙) ◂-Somewhere⋆ (bind₀-SP⋆ x (prenex₀-passages pre))
+    prenex₀-passages ([- x ] pre) = (∙ [-]∙) ◂-Somewhere⋆ (bind₀-SP⋆ x (prenex₀-passages pre))
+    prenex₀-passages (via-pass sp pre) = trans⋆′ (prenex₀-passages pre) (SP-sym sp)
+
+    prenex₀-correct : {p : QH₀} (pre : Prenex₀ p) → (interpret-prenex₀ pre) ≈ p
+    prenex₀-correct pre = SP⋆-≈ (prenex₀-passages pre)
 -}
+  open Prenex₀Mod public
+-}
+
+
+{-
   module Theorem4-1 where
     open Atomic atomic using (Atom ; X)
     open import Data.Fin hiding (raise)
@@ -305,7 +344,7 @@ Wait, why can't I just bubble out all quantifiers? ξ?
     open import Relation.Nullary.Sum
 
     data Atom41 (n : ℕ) : Set where
-      elem : (p : QH0) → elementary p → Atom41 n
+      elem : (p : QH₀) → elementary p → Atom41 n
       arg : Fin n → Atom41 n
 
     PF41 : ℕ → Set
@@ -357,7 +396,7 @@ Wait, why can't I just bubble out all quantifiers? ξ?
     swap [+-] = [-+]
     swap [-+] = [+-]
 {-
-    [?] : {n : ℕ} → [?]-order → (t t' : X) → (pf : PF41 (suc n)) → Bool → Bool → QH0 → QH0
+    [?] : {n : ℕ} → [?]-order → (t t' : X) → (pf : PF41 (suc n)) → Bool → Bool → QH₀ → QH₀
     [?] [+-] t t' pf true  true  q = [+ t ] [- t' ] q
     [?] [-+] t t' pf true  true  q = [- t ] [+ t' ] q
     [?] _    t t' pf true  false q = [+ t ] q
@@ -365,7 +404,7 @@ Wait, why can't I just bubble out all quantifiers? ξ?
     [?] _    t t' pf false false q = q
 -}
 
-    [?] : {n : ℕ} → [?]-order → (t t' : X) → (pf : PF41 (suc n)) → QH0 → QH0
+    [?] : {n : ℕ} → [?]-order → (t t' : X) → (pf : PF41 (suc n)) → QH₀ → QH₀
     [?] ord t t' pf q with ord | ⌊ zero ∈₊? pf ⌋ | ⌊ zero ∈₋? pf ⌋
     ... | [+-] | true | true = [+ t ] [- t' ] q
     ... | [-+] | true | true = [- t' ] [+ t ] q
@@ -375,7 +414,7 @@ Wait, why can't I just bubble out all quantifiers? ξ?
 
 
 --    [?] ord ~ pf = ~ [?] (swap ord) 
-    [?]~ : {n : ℕ} → (ord : [?]-order) → (t t' : X) → (pf : PF41 (suc n)) → (q : QH0) → ~ ([?] (swap ord) t' t pf q) ≈ [?] ord t t' (~ pf) (~ q)
+    [?]~ : {n : ℕ} → (ord : [?]-order) → (t t' : X) → (pf : PF41 (suc n)) → (q : QH₀) → ~ ([?] (swap ord) t' t pf q) ≈ [?] ord t t' (~ pf) (~ q)
     [?]~ ord t t' pf q with ord | ⌊ zero ∈₊? pf ⌋ | ⌊ zero ∈₋? pf ⌋
     ... | [+-] | true  | true  = ≈-trans (SP-≈ (at ∙ pass₂)) ((SP-≈ (at (∙ [+]∙) pass₁)))
     ... | [-+] | true  | true  = ≈-trans (SP-≈ (at ∙ pass₁)) ((SP-≈ (at (∙ [-]∙) pass₂)))
@@ -387,13 +426,13 @@ Wait, why can't I just bubble out all quantifiers? ξ?
     ... | [-+] | false | false = ≈-refl
 
 {-
-    [?]₊ : {n : ℕ} → (t t' : X) → (pf : PF41 (suc n)) → Dec (zero ∈₊ pf) → Dec (zero ∈₋ pf) → QH0 → QH0
+    [?]₊ : {n : ℕ} → (t t' : X) → (pf : PF41 (suc n)) → Dec (zero ∈₊ pf) → Dec (zero ∈₋ pf) → QH₀ → QH₀
     [?]₊ t t' pf (yes _) (yes _) q = [+ t ] [- t' ] q
     [?]₊ t t' pf (yes _) (no _)  q = [+ t ] q
     [?]₊ t t' pf (no _)  (yes _) q = [- t' ] q
     [?]₊ t t' pf (no _)  (no _)  q = q
 
-    [?]₋ : {n : ℕ} → (t t' : X) → (pf : PF41 (suc n)) → Dec (zero ∈₊ pf) → Dec (zero ∈₋ pf) → QH0 → QH0
+    [?]₋ : {n : ℕ} → (t t' : X) → (pf : PF41 (suc n)) → Dec (zero ∈₊ pf) → Dec (zero ∈₋ pf) → QH₀ → QH₀
     [?]₋ t t' pf (yes _) (yes _) q = [- t ] [+ t' ] q
     [?]₋ t t' pf (yes _) (no _)  q = [- t ] q
     [?]₋ t t' pf (no _)  (yes _) q = [+ t' ] q
@@ -402,22 +441,22 @@ Wait, why can't I just bubble out all quantifiers? ξ?
 {-
     ~[?]₊ : {n : ℕ} → (t t' : X) → (pf : PF41 (suc n)) →
       (0∈₊ : Dec (zero ∈₊ pf)) → (0∈₋ : Dec (zero ∈₋ pf)) →
-      (q : QH0) →
+      (q : QH₀) →
       ~ ([?]₋ t t' 0∈₊ 0∈₋ q) ≈ ([?]₊ t t' 0∈₋ 0∈₊ (~ q))
 
     ~[?]₊ : {n : ℕ} → (t t' : X) → (pf : PF41 (suc n)) →
       (0∈₊ : Dec (zero ∈₊ pf)) → (0∈₋ : Dec (zero ∈₋ pf)) →
-      (q : QH0) →
+      (q : QH₀) →
       ~ ([?]₊ t t' 0∈₊ 0∈₋ q) ≈ 
 -}
 
-    apply : {n : ℕ} → PF41 n → Vec QH0 n → QH0
+    apply : {n : ℕ} → PF41 n → Vec QH₀ n → QH₀
     apply (atom (arg i)) as = lookup i as
     apply (atom (elem q _)) _ = q
     apply (~ pf) as = ~ apply pf as
     apply (pf₁ ∪ pf₂) as = (apply pf₁ as) ∪ (apply pf₂ as)
 
-    bubble[+] : {n : ℕ} → (order : [?]-order) → (pf : PF41 (suc n)) → (a : QH0) → (as : Vec QH0 n) →
+    bubble[+] : {n : ℕ} → (order : [?]-order) → (pf : PF41 (suc n)) → (a : QH₀) → (as : Vec QH₀ n) →
       (t t' : X) → t ∉ (apply pf (a ∷ as)) → t' ∉ (apply pf (a ∷ as)) →
       Friendly zero pf →
       (apply pf (([+ t ] a) ∷ as)) ≈ ([?] order t t' pf (apply pf (a ∷ as)))
@@ -443,7 +482,7 @@ Wait, why can't I just bubble out all quantifiers? ξ?
        = ~ (apply pf (([+ t ] a) ∷ as)) ≈ [?] [+-] t t' (~ pf) (~ (apply pf (a ∷ as)))
 -}
 {-
-    bubble₋ : {n : ℕ} → (pf : PF41 (suc n)) → (a : QH0) → (as : Vec QH0 n) →
+    bubble₋ : {n : ℕ} → (pf : PF41 (suc n)) → (a : QH₀) → (as : Vec QH₀ n) →
       (t t' : X) → t ∉ (apply pf (a ∷ as)) → t' ∉ (apply pf (a ∷ as)) →
       Friendly zero pf →
       (apply pf (([- t ] a) ∷ as)) ≈ ([?]₋ t t' pf (zero ∈₊? pf) (zero ∈₋? pf) (apply pf (a ∷ as)))
@@ -473,3 +512,4 @@ Wait, why can't I just bubble out all quantifiers? ξ?
     --elim₀ : {n : ℕ} → (pf : PF41 (suc n)) → 
 -}
   open Theorem4-1 public
+-}
