@@ -8,7 +8,7 @@ module Common where
   open import Data.Vec using (Vec ; _∷_ ; [])
   open import Function using (_∘_) public
   open import Data.Product using (Σ ; _×_ ; _,_ ; proj₁ ; proj₂) public
-  open import Data.Sum using (_⊎_ ; inj₁ ; inj₂) public
+  open import Data.Sum using (_⊎_ ; inj₁ ; inj₂ ; [_,_]′) public
   open import Data.Empty using (⊥ ; ⊥-elim) public
   open import Data.Unit using (⊤ ; tt) public
   open import Relation.Nullary public
