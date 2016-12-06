@@ -13,7 +13,7 @@ module SNDev {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
     open import SucNat.Base {X = X}
     open import SucNat.FK {X = X}
     open import SucNat.DecVar {X = X} {_≟_ = _X≟_}
-    open import Data.List using (List ; [] ; _∷_ ; foldr ; all)
+    open import Data.List using (List ; [] ; _∷_ ; foldr ; all ; null)
 
 
     open Proofs FKAxioms
@@ -48,6 +48,10 @@ module SNDev {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
     -- Evaluating a quantifier-free proposition ⇒ use the evaluation in FirstKind.agda, giving it the above means for evaluating atoms.
     evalQF : (X → ℕ) → QF → Bool
     evalQF e = eval (evalAtom e)
+
+    -- Semantic equivalence
+    _⇔_ : QF → QF → Set
+    p₁ ⇔ p₂ = (f : X → ℕ) → (evalQF f p₁ ≡ evalQF f p₂)
 
     -- Handy lemmas...
     evalTerm-tsuc : (e : X → ℕ) (t : Term zero) → evalTerm e (tsuc t) ≡ suc (evalTerm e t)
@@ -107,8 +111,8 @@ module SNDev {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
 
     -- P₁ ≡ P₂ → ⟦P₁⟧ₑ ≡ ⟦P₂⟧ₑ
     -- Logically equivalence propositions have equivalent (read: identical) semantics.
-    evalQF-≣ : {p₁ p₂ : QF} → (e : X → ℕ) → ⊢ p₁ ≣ p₂ → evalQF e p₁ ≡ evalQF e p₂
-    evalQF-≣ {p₁} {p₂} e eq with evalQF e p₁ | evalQF e p₂ | provableTrue (evalAtom e) (happy e) (&-elim₁' eq) | provableTrue (evalAtom e) (happy e) (&-elim₂' eq)
+    evalQF-≣ : {p₁ p₂ : QF} → ⊢ p₁ ≣ p₂ → p₁ ⇔ p₂
+    evalQF-≣ {p₁} {p₂} eq e with evalQF e p₁ | evalQF e p₂ | provableTrue (evalAtom e) (happy e) (&-elim₁' eq) | provableTrue (evalAtom e) (happy e) (&-elim₂' eq)
     ... | true  | true  | 1⇒2 | 2⇒1 = refl
     ... | false | false | 1⇒2 | 2⇒1 = refl
     ... | true  | false | 1⇒2 | 2⇒1 = ⊥-elim 1⇒2
@@ -202,17 +206,20 @@ module SNDev {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
       substitute-env (~ p) e x a = cong not (substitute-env p e x a)
       substitute-env (p₁ ∪ p₂) e x a = cong₂ _∨_ (substitute-env p₁ e x a) (substitute-env p₂ e x a)
 
-      substitute-sat : (p : QF) (e : Env) (x : X) (a : ℕ) → e satisfies (substitute x a p) → ((x , a) ∷ e) satisfies p
-      substitute-sat p e x a sat with evalWith e (substitute x a p) | evalWith ((x , a) ∷ e) p | substitute-env p e x a 
+      substitute-sat : (p : QF) (x : X) (a : ℕ) (e : Env) → e satisfies (substitute x a p) → ((x , a) ∷ e) satisfies p
+      substitute-sat p x a e sat with evalWith e (substitute x a p) | evalWith ((x , a) ∷ e) p | substitute-env p e x a 
       ... | true  | .true | refl = tt
       ... | false | _ | _ = ⊥-elim sat
-      
+
+      Sat : QF → Set
+      Sat p = Σ Env (λ e → e satisfies p)
+
     open Environment
 
 
     -- A variable mapping that satisfies a quantifier-free proposition.
-    Sat : QF → Set
-    Sat p = Σ (X → ℕ) (λ e → T (evalQF e p))
+--    Sat : QF → Set
+--    Sat p = Σ (X → ℕ) (λ e → T (evalQF e p))
 
     {-
     sat-substitute : (x : X) (a : ℕ) (p : QF) → Sat (substitute x a p) → Sat p
@@ -399,6 +406,22 @@ module SNDev {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
         is≠ (form₄ _ _) = ⊤
         is≠ _ = ⊥
 
+        kind₀-∉ : (t : X) (cf : CanonicalFactor) → kindOf t cf ≡ kind₀ → ¬ t ∈ cf
+        kind₀-∉ t (form₁ .t _) isk₀ refl with isk₀
+        kind₀-∉ t (form₁ .t _) isk₀ refl | ()
+        kind₀-∉ t (form₂ .t _ _ _) isk₀ (inj₁ refl) with isk₀
+        kind₀-∉ t (form₂ .t _ _ _) isk₀ (inj₁ refl) | ()
+        kind₀-∉ t (form₂ _ .t _ _) isk₀ (inj₂ refl) with isk₀
+        kind₀-∉ t (form₂ _ .t _ _) isk₀ (inj₂ refl) | ()
+        kind₀-∉ t (form₃ .t _ _ _) isk₀ (inj₁ refl) with isk₀
+        kind₀-∉ t (form₃ .t _ _ _) isk₀ (inj₁ refl) | ()
+        kind₀-∉ t (form₃ _ .t _ _) isk₀ (inj₂ refl) with isk₀
+        kind₀-∉ t (form₃ _ .t _ _) isk₀ (inj₂ refl) | ()
+        kind₀-∉ t (form₄ .t _) isk₀ refl with isk₀
+        kind₀-∉ t (form₄ .t _) isk₀ refl | ()
+        kind₀-∉ t failure isk₀ ()
+        
+
       open CF using (is= ; is≠)
 
 
@@ -444,16 +467,61 @@ module SNDev {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
         ... | kind₂ = kind₂
         ... | kind₃ = kind₃
 
+
+        -- Some useful little semantic results
+        false-prod : (f : X → ℕ) (cf : CanonicalFactor) (cfs : List CanonicalFactor) → ¬ T (evalQF f (CF.interpret cf)) → ¬ T (evalQF f (interpret (cf ∷ cfs)))
+        false-prod f cf cfs cf-false with evalQF f (CF.interpret cf)
+        false-prod f cf cfs cf-false | true  = contradiction tt cf-false
+        false-prod f cf cfs cf-false | false = λ ()
+
+        true-prod : (f : X → ℕ) (cf : CanonicalFactor) (cfs : List CanonicalFactor) → T (evalQF f (CF.interpret cf)) → evalQF f (interpret (cf ∷ cfs)) ≡ evalQF f (interpret (cf ∷ cfs))
+        true-prod f cf cfs cf-true with evalQF f (CF.interpret cf)
+        true-prod f cf cfs cf-true | true  = refl
+        true-prod f cf cfs cf-true | false = ⊥-elim cf-true
+
+
         module Finders where
           -- Find the first factor containing a given variable.
           find : (x : X) (cfs : List CanonicalFactor) → x ∈ cfs → Σ CanonicalFactor (λ cf → (x CF.∈ cf) × (cf L.∈ cfs))
-          find = {!!}
+          find t [] ()
+          find t (cf ∷ cfs) (inj₂ t∈cfs) with (find t cfs t∈cfs)
+          ... | (cf′ , x∈cf′ , cf′∈cfs) = (cf′ , x∈cf′ , there cf cf′∈cfs)
+          find t (form₁ .t a ∷ cfs) (inj₁ refl) = (form₁ t a , refl , here (form₁ t a) cfs)
+          find t (form₂ .t y b diff ∷ cfs) (inj₁ (inj₁ refl)) = (form₂ t y b diff , inj₁ refl , here (form₂ t y b diff) cfs)
+          find t (form₂ z .t b diff ∷ cfs) (inj₁ (inj₂ refl)) = (form₂ z t b diff , inj₂ refl , here (form₂ z t b diff) cfs)
+          find t (form₃ .t y₂ b diff ∷ cfs) (inj₁ (inj₁ refl)) = (form₃ t y₂ b diff , inj₁ refl , here (form₃ t y₂ b diff) cfs)
+          find t (form₃ y₁ .t b diff ∷ cfs) (inj₁ (inj₂ refl)) = (form₃ y₁ t b diff , inj₂ refl , here (form₃ y₁ t b diff) cfs)
+          find t (form₄ .t d ∷ cfs) (inj₁ refl) = (form₄ t d , refl , here (form₄ t d) cfs)
+          find t (failure ∷ _) (inj₁ ())
 
+          kind₀-head : (x : X) (cf : CanonicalFactor) (cfs : List CanonicalFactor) → kindOf x (cf ∷ cfs) ≡ kind₀ → CF.kindOf x cf ≡ kind₀
+          kind₀-head x cf _ isk₀ with CF.kindOf x cf | isk₀
+          ... | kind₀ | _ = refl
+          ... | kind₁ | ()
+          ... | kind₂ | ()
+          ... | kind₃ | ()
+
+          kind₀-tail : (x : X) (cf : CanonicalFactor) (cfs : List CanonicalFactor) → kindOf x (cf ∷ cfs) ≡ kind₀ → kindOf x cfs ≡ kind₀
+          kind₀-tail x cf [] _ = refl
+          kind₀-tail x cf cfs isk₀ with CF.kindOf x cf | isk₀
+          ... | kind₀ | _ = isk₀
+          ... | kind₁ | ()
+          ... | kind₂ | ()
+          ... | kind₃ | ()
+
+          kind₀-∉ : (t : X) (cfs : List CanonicalFactor) → kindOf t cfs ≡ kind₀ → ¬ t ∈ cfs
+          kind₀-∉ t [] isk₀ ()
+          kind₀-∉ t (cf ∷ cfs) isk₀ (inj₁ t∈cf) = contradiction t∈cf (CF.kind₀-∉ t cf (kind₀-head t cf cfs isk₀)) 
+          kind₀-∉ t (cf ∷ cfs) isk₀ (inj₂ t∈cfs) = kind₀-∉ t cfs (kind₀-tail t cf cfs isk₀) t∈cfs
+
+
+{-
           findKind₁ : (x : X) (cfs : List CanonicalFactor) → kindOf x cfs ≡ kind₁ → Σ CanonicalFactor (λ cf → (x CF.∈ cf) × (CF.kindOf x cf ≡ kind₁) × (cf L.∈ cfs))
           findKind₁ = {!!}
 
           findKind₃ : (x : X) (cfs : List CanonicalFactor) → kindOf x cfs ≡ kind₃ → Σ CanonicalFactor (λ cf → (x CF.∈ cf) × (CF.kindOf x cf ≡ kind₃) × (cf L.∈ cfs))
           findKind₃ = {!!}
+-}
 
           -- If a factor plays nicely with a product, removing any factor in the product preserves this.
           playsNice-remove : {rm : CanonicalFactor} {cfs : List CanonicalFactor} (cf : CanonicalFactor) (it : rm L.∈ cfs)
@@ -469,7 +537,7 @@ module SNDev {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
           toFrontOk : {cf : CanonicalFactor} {cfs : List CanonicalFactor} (it : cf L.∈ cfs) → isCanonicalProduct cfs → isCanonicalProduct (L.toFront it)
           toFrontOk it pn = ({!!} , removeOk it pn)
 
-        open Finders using (find)
+        open Finders using (find , kind₀-∉)
 
           --pull : (x : X) (cfs : List CanonicalFactor) → x ∈ cfs → (
 
@@ -585,17 +653,21 @@ caseB t a b cfs | yes a≤b | b-a | kind₀ =
         toCP-canonical (f ∷ fs) = addFactor-canonical f (toCP fs) (toCP-canonical fs)
 
         -- And it's equivalent to the original.
-        toCP-equiv : (p : List Factor) → ⊢ (interpret (toCP p)) ≣ (P.interpret p)
-        toCP-equiv [] = ≣-refl (F.interpret 0=0)
-        toCP-equiv (f ∷ fs) = ≣-trans' (addFactor-equiv f (toCP fs)) (&-≣ (F.interpret f) (toCP-equiv fs))
+        --toCP-equiv : (p : List Factor) → ⊢ (interpret (toCP p)) ≣ (P.interpret p)
+        --toCP-equiv [] = ≣-refl (F.interpret 0=0)
+        --toCP-equiv (f ∷ fs) = ≣-trans' (addFactor-equiv f (toCP fs)) (&-≣ (F.interpret f) (toCP-equiv fs))
 
+        -- ...at least semantically.
+        toCP-sem-equiv : (p : List Factor) → (interpret (toCP p)) ⇔ (P.interpret p)
+        toCP-sem-equiv = {!!}
 
-
-        -- CPs either equiv to 0≠0 or satisfiable
-
-        -- Variable assignment
-        --module VA where
-
+        -- Solving the inequalities. Roughly:
+        --   * Grab a variable
+        --   * Substitute any value that won't make any term false
+        --   * Repeat
+        --
+        -- One would expect this is be easy to express and prove.
+        -- Hopefully there is a more elegant way.
         module Ineq where
 
           -- A list of canonical factors that are of form 3 or 4
@@ -613,92 +685,146 @@ caseB t a b cfs | yes a≤b | b-a | kind₀ =
           avoid w (form₃ _ _ _ _ ∷ cfs , _ , cfs≠) = avoid w (cfs , cfs≠)
           avoid w (form₄ y d ∷ cfs , _ , cfs≠) = if ⌊ w X≟ y ⌋ then d ∷ avoid w (cfs , cfs≠ ) else avoid w (cfs , cfs≠)
 
-          --avoid-tail : {a : ℕ} {y : X} {ineq : Σ CanonicalFactor is≠} {ineqs : Ineqs} → ¬ a L.∈ (avoid y (cons-ineq ineq ineqs)) → ¬ a L.∈ (avoid y ineqs)
           avoid-tail : {a : ℕ} {y : X} (ineq : Σ CanonicalFactor is≠) (ineqs : Ineqs) → ¬ a L.∈ (avoid y (cons-ineq ineq ineqs)) → ¬ a L.∈ (avoid y ineqs)
           avoid-tail = {!!}
 
           -- Substitute a value in place of a variable in a set of *inequalities*.
-          -- Must not break anything.
-          sub-≠s : (t : X) (a : ℕ) (≠s : Ineqs) → ¬ a L.∈ (avoid t ≠s) → Ineqs 
-          sub-≠s _ _ ([] , _) _ = ([] , tt)
+          -- The result is equivalent if a ∉ avoid t ≠s, as will be proven later.
+          sub-≠s : (t : X) (a : ℕ) (≠s : Ineqs) → Ineqs 
+          sub-≠s _ _ ([] , _) = ([] , tt)
           sub-≠s _ _ ((form₁ _ _) ∷ _ , () , _)
           sub-≠s _ _ ((form₂ _ _ _ _) ∷ _ , () , _)
           sub-≠s _ _ (failure ∷ _ , () , _)
-          sub-≠s t a (form₃ y₁ y₂ b y₁≢y₂ ∷ ≠s , _ , ≠s-≠) a-ok = {!!}
-          sub-≠s t a (form₄ y  d ∷ ≠s , _ , ≠s-≠) a-ok = if ⌊ t X≟ y ⌋
-            --then sub-≠s t a (≠s , ≠s-≠) (avoid-tail a-ok)
-            --else cons-ineq (form₄ y d , tt) (sub-≠s t a (≠s , ≠s-≠) (avoid-tail a-ok))
-            then sub-≠s t a (≠s , ≠s-≠) (avoid-tail (form₄ y d , tt) (≠s , ≠s-≠) a-ok)
-            else cons-ineq (form₄ y d , tt) (sub-≠s t a (≠s , ≠s-≠) (avoid-tail (form₄ y d , tt) (≠s , ≠s-≠) a-ok))
-          
-          {-
-          sub-≠s w n ((form₃ y₁ y₂ b diff) ∷ ≠s , _ , ≠s-≠) = if ⌊ w X≟ y₁ ⌋
-            then if ⌊ b ≤? n ⌋
-              then form₄ y₂ (n ∸ b) ∷ sub-≠s w n ≠s ≠s-≠
-              else sub-≠s w n ≠s ≠s-≠
-            else if ⌊ w X≟ y₂ ⌋
-              then form₄ y₁ (n ℕ+ b) ∷ sub-≠s w n ≠s ≠s-≠
-              else form₃ y₁ y₂ b diff ∷ sub-≠s w n ≠s ≠s-≠
-          sub-≠s w n ((form₄ y d) ∷ ≠s) (_ , ≠s-≠) = if ⌊ w X≟ y ⌋
-            then if ⌊ n ℕ≟ d ⌋
-              then failure ∷ []
-              else sub-≠s w n ≠s ≠s-≠
-            else form₄ y d ∷ sub-≠s w n ≠s ≠s-≠
-          -}
-          {-
-          sub-≠s-substitute : (t : X) (a : ℕ) (≠s : List CanonicalFactor) (≠s-≠ : allP is≠ ≠s) (e : X → ℕ)
-            → (evalQF e (interpret (sub-≠s t a ≠s ≠s-≠))) ≡ (evalQF e (substitute t a (interpret ≠s)))
-          sub-≠s-substitute t a [] _ _ = refl
-          sub-≠s-substitute t a (form₁ _ _ ∷ _) (() , _)
-          sub-≠s-substitute t a (form₂ _ _ _ _ ∷ _) (() , _)
-          sub-≠s-substitute t a (failure ∷ _) (() , _)
-          sub-≠s-substitute t a (form₃ y₁ y₂ b y₁≢y₂ ∷ ≠s) (_ , ≠s-≠) e = {!!}
-          sub-≠s-substitute t a (form₄ y  d ∷ ≠s) (_ , ≠s-≠) e with t X≟ y
-          sub-≠s-substitute t a (form₄ .t d  ∷ ≠s) (_ , ≠s-≠) e | yes refl with a ℕ≟ d
-          sub-≠s-substitute t a (form₄ .t .a ∷ ≠s) (_ , ≠s-≠) e | yes refl | yes refl = refl
-          sub-≠s-substitute t a (form₄ .t d  ∷ ≠s) (_ , ≠s-≠) e | yes refl | no  a≠d  = {!sub-≠s-substitute t a ≠s ≠s-≠ e!}
-          sub-≠s-substitute t a (form₄ y  d  ∷ ≠s) (_ , ≠s-≠) e | no  diff = cong (λ s → not ((not (evalQF e (CF.interpret (form₄ y d)))) ∨ (not s))) (sub-≠s-substitute t a ≠s ≠s-≠ e)
-          -}
-          --sub-≠s-sat : (t : X) (a : ℕ) (≠s : List CanonicalFactor) (≠s-≠ : allP is≠ ≠s)
-          --  → 
-                    
-          {-
-          solve-≠s : (ys : List X) (≠s : List CanonicalFactor) → allP is≠ ≠s → Env
-          solve-≠s [] _ _ = []
-          solve-≠s (y ∷ ys) ≠s ≠s-≠ with choice y ≠s ≠s-≠
-          ... | a = (y , a) ∷ solve-≠s ys (sub-≠s y a ≠s ≠s-≠) (choice-ok y ≠s ≠s-≠)
-          -}
-          -- If a number isn't in the
---          avoid-ok : (x : X) (a : ℕ) (≠s : List CanonicalFactor) (≠s-≠ : allP is≠ ≠s) → ¬ (a L.∈ avoid x ≠s ≠s-≠) → 
+          sub-≠s t a (form₃ y₁ y₂ b y₁≢y₂ ∷ ≠s , _ , ≠s-≠) =
+            if ⌊ t X≟ y₁ ⌋
+              then if ⌊ b ≤? a ⌋
+                then cons-ineq (form₄ y₂ (a ∸ b) , tt)     (sub-≠s t a (≠s , ≠s-≠))
+                else                                       (sub-≠s t a (≠s , ≠s-≠))
+              else if ⌊ t X≟ y₂ ⌋
+                then cons-ineq (form₄ y₁ (a ℕ+ b) , tt)    (sub-≠s t a (≠s , ≠s-≠))
+                else cons-ineq (form₃ y₁ y₂ b y₁≢y₂ , tt)  (sub-≠s t a (≠s , ≠s-≠)) 
+          sub-≠s t a (form₄ y  d ∷ ≠s , _ , ≠s-≠) =
+            if ⌊ t X≟ y ⌋
+              then                                         (sub-≠s t a (≠s , ≠s-≠)) -- this is equiv only if a≠d
+              else cons-ineq (form₄ y d , tt)              (sub-≠s t a (≠s , ≠s-≠))
 
+          notnot : {b : Bool} → b ≡ not (not b)
+          notnot {true} = refl
+          notnot {false} = refl
 
+          dual-and : Bool → Bool → Bool
+          dual-and a b = not ((not a) ∨ (not b))
 
-          {-
-          eval-sub : (f x ≡ a) → eval f (interpret cp) ≡ eval f (interpret (sub-≠s x a
+          sub-≠s-substitute : (t : X) (a : ℕ) (≠s : Ineqs)
+            → ¬ a L.∈ avoid t ≠s
+            → interpret (proj₁ (sub-≠s t a ≠s)) ⇔ substitute t a (interpret (proj₁ ≠s))
+          sub-≠s-substitute _ _ ([] , _) _ _ = refl
+          sub-≠s-substitute _ _ ((form₁ _ _) ∷ _ , () , _)
+          sub-≠s-substitute _ _ ((form₂ _ _ _ _) ∷ _ , () , _)
+          sub-≠s-substitute _ _ (failure ∷ _ , () , _)
+          sub-≠s-substitute t a (form₃ y₁ y₂ b y₁≢y₂ ∷ ≠s , _ , ≠s-≠) a-ok e with t X≟ y₁
+          sub-≠s-substitute t a (form₃ .t y₂ b y₁≢y₂ ∷ ≠s , _ , ≠s-≠) a-ok e | yes refl with b ≤? a
+          sub-≠s-substitute t a (form₃ .t y₂ b y₁≢y₂ ∷ ≠s , _ , ≠s-≠) a-ok e | yes refl | yes b≤a = {!!} -- equiv factor
+          sub-≠s-substitute t a (form₃ .t y₂ b y₁≢y₂ ∷ ≠s , _ , ≠s-≠) a-ok e | yes refl | no  b≰a = {!!} -- factor auto-true
+          sub-≠s-substitute t a (form₃ y₁ y₂ b y₁≢y₂ ∷ ≠s , _ , ≠s-≠) a-ok e | no  _ with t X≟ y₂
+          sub-≠s-substitute t a (form₃ y₁ .t b y₁≢y₂ ∷ ≠s , _ , ≠s-≠) a-ok e | no  _ | yes refl = {!!}
+          sub-≠s-substitute t a (form₃ y₁ y₂ b y₁≢y₂ ∷ ≠s , _ , ≠s-≠) a-ok e | no  _ | no  _    = cong (dual-and (evalQF e (CF.interpret (form₃ y₁ y₂ b y₁≢y₂)))) (sub-≠s-substitute t a (≠s , ≠s-≠) a-ok e)
+          sub-≠s-substitute t a (form₄ y  d  ∷ ≠s , _ , ≠s-≠) a-ok e with t X≟ y
+          sub-≠s-substitute t a (form₄ .t d  ∷ ≠s , _ , ≠s-≠) a-ok e | yes refl with a ℕ≟ d
+          sub-≠s-substitute t a (form₄ .t .a ∷ ≠s , _ , ≠s-≠) a-ok e | yes refl | yes refl = contradiction (here a (avoid t (≠s , ≠s-≠))) a-ok
+          sub-≠s-substitute t a (form₄ .t d  ∷ ≠s , _ , ≠s-≠) a-ok e | yes refl | no  _    = trans (sub-≠s-substitute t a (≠s , ≠s-≠) (a-ok ∘ (there d)) e) notnot
+          sub-≠s-substitute t a (form₄ y  d  ∷ ≠s , _ , ≠s-≠) a-ok e | no  _    = cong (dual-and (evalQF e (CF.interpret (form₄ y d)))) (sub-≠s-substitute t a (≠s , ≠s-≠) a-ok e)
+--          sub-≠s-substitute t a (form₄ y  d  ∷ ≠s , _ , ≠s-≠) e a-ok | no  _    = cong (dual-and (not ⌊ e y ℕ≟ d ⌋)) (sub-≠s-substitute t a (≠s , ≠s-≠) e a-ok)
 
-          -- If we replace x with a,
-          -- If sub x a p satisfiable, then p satisfiable.
+          --sub-≠s- : (t : X) (a : ℕ) (≠s : Ineqs) → ¬ t ∈ (sub-≠s t a ≠s)
 
-          -}
-          {-
-          solve-y : (≠s : List CanonicalFactor) → T (all CF.is≠ ≠s) → X → ℕ
-          solve-y [] _ _ = zero
-          solve-y 
+          fresh : List ℕ → ℕ
+          fresh = {!!}
 
-          solve-≠s : (≠s : List CanonicalFactor) → T (all CF.is≠ ≠s) → 
-          solve-≠s [] = 
-          -}
+          -- The result of fresh is indeed fresh.
+          fresh-fresh : (xs : List ℕ) → ¬ (fresh xs) L.∈ xs
+          fresh-fresh = {!!}
 
+          sub-≠s-env : (t : X) (a : ℕ) (≠s : Ineqs)
+            → ¬ a L.∈ (avoid t ≠s)
+            → (e : Env)
+            → e satisfies (interpret (proj₁ (sub-≠s t a ≠s)))
+            → ((t , a) ∷ e) satisfies (interpret (proj₁ ≠s))
+          sub-≠s-env t a ≠s a-ok e sat = substitute-sat (interpret (proj₁ ≠s)) t a e
+            (subst T (sub-≠s-substitute t a ≠s a-ok (lookup e)) sat)
 
-        falseOrSatCP : (cp : List CanonicalFactor) → isCanonicalProduct cp → (⊢ ~ (interpret cp)) ⊎ (Sat (interpret cp))
-        falseOrSatCP cp isCP = {!!}
+          choose : X → Ineqs → ℕ
+          choose y ≠s = fresh (avoid y ≠s)
 
-        falseOrSat : (p : List Factor) → (⊢ ~ (P.interpret p)) ⊎ (Sat (P.interpret p))
-        falseOrSat p with falseOrSatCP (toCP p) (toCP-canonical p)
-        ... | inj₁ ⊢~cp = inj₁ (impl (contra' (&-elim₂' (toCP-equiv p))) ⊢~cp )
-        ... | inj₂ (sys , ⟦cp⟧) = inj₂ ((sys , subst T (evalQF-≣ sys (toCP-equiv p)) ⟦cp⟧ ))
+          choose-ok : (y : X) (≠s : Ineqs) → ¬ choose y ≠s L.∈ avoid y ≠s
+          choose-ok y ≠s = fresh-fresh (avoid y ≠s)
 
+          hasVar : (x : X) (ys : List X) → Dec (x L.∈ ys)
+          hasVar _ [] = no (λ ())
+          hasVar x (y ∷ ys) with x X≟ y
+          hasVar x (.x ∷ ys) | yes refl = yes (here x ys)
+          hasVar x (y ∷ ys)  | no  _ with hasVar x ys
+          hasVar x (y ∷ ys)  | no  _ | yes p = yes (there y p)
+          hasVar x (y ∷ ys)  | no  _ | no ¬p = no {!!}
 
+          insert-if-∉ : X → List X → List X
+          insert-if-∉ x ys with hasVar x ys
+          ... | yes _ = ys
+          ... | no  _ = x ∷ ys
+
+          free : Ineqs → List X
+          free ([] , _) = []
+          free (form₁ _ _ ∷ _ , () , _)
+          free (form₂ _ _ _ _ ∷ _ , () , _)
+          free (form₃ y₁ y₂ b y₁≢y₂ ∷ ≠s , _ , ≠s-≠) = insert-if-∉ y₁ (insert-if-∉ y₂ (free (≠s , ≠s-≠)))
+          free (form₄ y d ∷ ≠s , _ , ≠s-≠) = insert-if-∉ y (free (≠s , ≠s-≠))
+          free (failure ∷ _ , () , _)
+
+          empty : {A : Set} → List A → Set
+          empty [] = ⊤
+          empty _ = ⊥
+
+          nonempty-free : (≠s : Ineqs) → ¬ empty (proj₁ ≠s) → ¬ empty (free ≠s)
+          nonempty-free = {!!}
+
+          free-sub : (y : X) (a : ℕ) (≠s : Ineqs) (ys : List X) → (y ∷ ys) ≡ free ≠s → ys ≡ free (sub-≠s y a ≠s) 
+          free-sub y a ≠s ys eq = {!!}
+
+          solve-ys : List X → (≠s : Ineqs) → Env
+          solve-ys [] _ = []
+          solve-ys (y ∷ ys) ≠s = (y , choose y ≠s) ∷ (solve-ys ys (sub-≠s y (choose y ≠s) ≠s))
+
+          solve-ys-works : (ys : List X) (≠s : Ineqs) → ys ≡ free ≠s → (solve-ys ys ≠s) satisfies (interpret (proj₁ ≠s)) 
+          solve-ys-works [] ([] , _) _ = tt
+          solve-ys-works [] (form₁ _ _ ∷ _ , () , _)
+          solve-ys-works [] (form₂ _ _ _ _ ∷ _ , () , _)
+          solve-ys-works [] (form₃ y₁ y₂ b y₁≢y₂ ∷ ≠s , _ , ≠s-≠) eq = ⊥-elim (
+            (nonempty-free (form₃ y₁ y₂ b y₁≢y₂ ∷ ≠s , tt , ≠s-≠) (λ ()))
+            (subst empty eq tt))
+          solve-ys-works [] (form₄ y d ∷ ≠s , _ , ≠s-≠) eq = ⊥-elim (
+            (nonempty-free (form₄ y d ∷ ≠s , tt , ≠s-≠) (λ ()))
+            (subst empty eq tt))
+          solve-ys-works [] (failure ∷ _ , () , _)
+          solve-ys-works (y ∷ ys) ≠s eq = sub-≠s-env y (choose y ≠s) ≠s (choose-ok y ≠s) (solve-ys ys (sub-≠s y (choose y ≠s) ≠s))
+            (solve-ys-works ys (sub-≠s y (choose y ≠s) ≠s) (free-sub y (choose y ≠s) ≠s ys eq))
+
+          sat-ys : (≠s : List CanonicalFactor) → allP is≠ ≠s → Sat (interpret ≠s)
+          sat-ys ≠s ≠s-≠ = (solve-ys (free (≠s , ≠s-≠)) (≠s , ≠s-≠) , solve-ys-works (free (≠s , ≠s-≠)) (≠s , ≠s-≠) refl)
+
+        open Ineq using (sat-ys)
+
+        add-= : (cf : CanonicalFactor) (cfs : List CanonicalFactor) → is= cf → isCanonicalProduct (cf ∷ cfs)
+          → Sat (interpret cfs) → Sat (interpret (cf ∷ cfs))
+        add-= (form₁ x d) cfs _ (pn , cfsCanonical) (e , esat) = {!!}
+        add-= (form₂ y₁ y₂ b y₁≢y₂) cfs _ (pn , cfsCanonical) (e , esat) = {!!}
+        add-= (form₃ _ _ _ _) _ ()
+        add-= (form₄ _ _) _ ()
+        add-= failure _ ()
+
+-- kind₀ ⇒ ∉ ⇒ ¬ depends interpret
+--
+--       nodep-eval : (p : QF) (e : Env) (x : X) (a : ℕ) → ¬ depends p x → evalWith ((x , a) ∷ e) p ≡ evalWith e p
+--         true-prod : (f : X → ℕ) (cf : CanonicalFactor) (cfs : List CanonicalFactor) → T (evalQF f (CF.interpret cf)) → evalQF f (interpret (cf ∷ cfs)) ≡ evalQF f (interpret (cf ∷ cfs))
 
       -- Operations on/about canonical form (sum of canonical products)
       module CForm where
