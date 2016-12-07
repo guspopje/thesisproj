@@ -28,11 +28,12 @@ module SucNat.Properties {X : Set} {X-dec : Decidable {A = X} _≡_ } where
 
   -- open DecSetoid X= public renaming (Carrier to X ; _≟_ to _≟X_ ; _≈_ to _≈X_ ) hiding (refl ; sym ; trans)
 
-  _≈X_ : X → X → Set
-  _≈X_ = _≡_
+  private
+    _≈X_ : X → X → Set
+    _≈X_ = _≡_
   
-  _≟X_ : (x₁ x₂ : X) → Dec (x₁ ≡ x₂)
-  _≟X_ = X-dec
+    _≟X_ : (x₁ x₂ : X) → Dec (x₁ ≡ x₂)
+    _≟X_ = X-dec
  
   -- Terms
 
