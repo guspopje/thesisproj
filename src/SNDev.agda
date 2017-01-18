@@ -4,7 +4,8 @@ open import Relation.Binary.PropositionalEquality hiding ([_])
 
 module SNDev {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
   open import Common
-  open import Data.Nat using (ℕ ; zero ; suc ; _≤_ ; _≤?_ ; _∸_ ) renaming (_≟_ to _ℕ≟_ ; _+_ to _ℕ+_)
+  open import Data.Nat using (ℕ ; zero ; suc ; pred ; _≤_ ; z≤n ; s≤s ; _≤?_ ; _∸_ ; _>_) renaming (_≟_ to _ℕ≟_ ; _+_ to _ℕ+_)
+  open import Data.Nat.Properties using (≰⇒>)
   open import Data.Nat.Properties.Simple using (+-comm ; +-assoc)
 
   open import SucNat.Base {X = X}
@@ -34,6 +35,17 @@ module SNDev {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
 
     0≠0 : Factor
     0≠0 = - (theℕ zero == theℕ zero)
+
+    notnot : {b : Bool} → b ≡ not (not b)
+    notnot {true} = refl
+    notnot {false} = refl
+
+    dual-and : Bool → Bool → Bool
+    dual-and a b = not ((not a) ∨ (not b))
+
+
+
+
 
     --------------------------------------------
     -- EVALUATING QF PROPOSITIONS (SEMANTICS) --
@@ -213,6 +225,13 @@ module SNDev {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
       ... | true  | .true | refl = tt
       ... | false | _ | _ = ⊥-elim sat
 
+      nodep-sat-add : (p : QF) (x : X) (a : ℕ) (e : Env) → ¬ depends p x → e satisfies p → ((x , a) ∷ e) satisfies p
+      nodep-sat-add p x a e nodep sat = subst T (sym (nodep-eval p e x a nodep)) sat
+
+      nodep-sat-drop : (p : QF) (x : X) (a : ℕ) (e : Env) → ¬ depends p x → ((x , a) ∷ e) satisfies p → e satisfies p
+      nodep-sat-drop p x a e nodep sat = subst T (nodep-eval p e x a nodep) sat
+
+
       Sat : QF → Set
       Sat p = Σ Env (λ e → e satisfies p)
 
@@ -282,7 +301,13 @@ module SNDev {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
 
       toFront : {a : A} {xs : List A} → a ∈ xs → List A
       toFront {a = a} it = a ∷ remove it
-    open L using (here ; there ; allP)
+
+      catMaybes : List (Maybe A) → List A
+      catMaybes [] = []
+      catMaybes (nothing ∷ xs) = catMaybes xs
+      catMaybes (just x ∷ xs) = x ∷ catMaybes xs
+
+    open L public using (here ; there ; allP)
 
     module KindAsType where
       data Kind : Set where
@@ -401,12 +426,15 @@ module SNDev {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
       kind₀-∉ t (form₄ .t _) isk₀ refl with isk₀
       kind₀-∉ t (form₄ .t _) isk₀ refl | ()
       kind₀-∉ t failure isk₀ ()
-      
+
+      ∉-nodep : (t : X) (cf : CanonicalFactor) → ¬ t ∈ cf → ¬ depends (interpret cf) t
+      ∉-nodep = {!!}
+
     open CF using (is= ; is≠)
 
 
     -- Operations on products of canonical factors, and canonical products (the former with additional restrictions)
-    module CProd where
+    module CP where
 
       interpret : List CanonicalFactor → QF
       interpret [] = F.interpret 0=0
@@ -440,6 +468,8 @@ module SNDev {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
       ... | kind₂ = kind₂
       ... | kind₃ = kind₃
 
+      ∉-nodep : (x : X) (cfs : List CanonicalFactor) → ¬ x ∈ cfs → ¬ depends (interpret cfs) x
+      ∉-nodep = {!!}
 
       -- Some useful little semantic results
       false-prod : (f : X → ℕ) (cf : CanonicalFactor) (cfs : List CanonicalFactor) → ¬ T (evalQF f (CF.interpret cf)) → ¬ T (evalQF f (interpret (cf ∷ cfs)))
@@ -451,7 +481,6 @@ module SNDev {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
       true-prod f cf cfs cf-true with evalQF f (CF.interpret cf)
       true-prod f cf cfs cf-true | true  = refl
       true-prod f cf cfs cf-true | false = ⊥-elim cf-true
-
 
       module Finders where
         -- Find the first factor containing a given variable.
@@ -487,6 +516,9 @@ module SNDev {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
         kind₀-∉ t (cf ∷ cfs) isk₀ (inj₁ t∈cf) = contradiction t∈cf (CF.kind₀-∉ t cf (kind₀-head t cf cfs isk₀)) 
         kind₀-∉ t (cf ∷ cfs) isk₀ (inj₂ t∈cfs) = kind₀-∉ t cfs (kind₀-tail t cf cfs isk₀) t∈cfs
 
+        kind₀-nodep : (t : X) (cfs : List CanonicalFactor) → kindOf t cfs ≡ kind₀ → ¬ depends (interpret cfs) t
+        kind₀-nodep t cfs isk₀ = ∉-nodep t cfs (kind₀-∉ t cfs isk₀)
+
 {-
         ¬kind₀-∈ : (t : X) (cfs : List CanonicalFactor) → ¬ kindOf t cfs ≡ kind₀ → t ∈ cfs
         ¬kind₀-∈ t [] notk₀ = contradiction refl notk₀
@@ -510,7 +542,7 @@ module SNDev {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
         toFrontOk : {cf : CanonicalFactor} {cfs : List CanonicalFactor} (it : cf L.∈ cfs) → isCanonicalProduct cfs → isCanonicalProduct (L.toFront it)
         toFrontOk it pn = ({!!} , removeOk it pn)
 
-      open Finders public using (find ; kind₀-∉)
+      open Finders public using (find ; kind₀-∉ ; kind₀-nodep)
 
         --pull : (x : X) (cfs : List CanonicalFactor) → x ∈ cfs → (
 
@@ -682,13 +714,6 @@ module SNDev {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
             then                                         (sub-≠s t a (≠s , ≠s-≠)) -- this is equiv only if a≠d
             else cons-ineq (form₄ y d , tt)              (sub-≠s t a (≠s , ≠s-≠))
 
-        notnot : {b : Bool} → b ≡ not (not b)
-        notnot {true} = refl
-        notnot {false} = refl
-
-        dual-and : Bool → Bool → Bool
-        dual-and a b = not ((not a) ∨ (not b))
-
         sub-≠s-substitute : (t : X) (a : ℕ) (≠s : Ineqs)
           → ¬ a L.∈ avoid t ≠s
           → interpret (proj₁ (sub-≠s t a ≠s)) ⇔ substitute t a (interpret (proj₁ ≠s))
@@ -803,11 +828,11 @@ module SNDev {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
       -- Interpret our canonical form (dnf on CanonicalFactors).
       interpret : List (List CanonicalFactor) → QF
       interpret [] = F.interpret 0≠0
-      interpret (cp ∷ cps) = (CProd.interpret cp) ∪ (interpret cps)
+      interpret (cp ∷ cps) = (CP.interpret cp) ∪ (interpret cps)
       
       -- Turn a sum of products into a sum of canonical products.
       dnf⇒CanonicalForm : List (List Factor) → List (List CanonicalFactor)
-      dnf⇒CanonicalForm = Data.List.map CProd.toCP
+      dnf⇒CanonicalForm = Data.List.map CP.toCP
 
       -- Transform a quantifier-free proposition into canonical form.
       toCF : QF → List (List CanonicalFactor)
@@ -838,8 +863,7 @@ module SNDev {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
     open QFree
     open Environment
 
-    -- Drop all factors in which a variable occurs.
-    -- Since this is only done for a variable of the first or third kind, only one term should be dropped, so there is likely a better way to formulate this.
+    -- Drop all factors containing t.
     case-a : X → List CanonicalFactor → List CanonicalFactor
     case-a t [] = []
     case-a t (cf ∷ cfs) with t CF.∈? cf
@@ -876,11 +900,221 @@ module SNDev {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
     case-b-sub-cf t s k (form₄ y  d) | no  _    = [ form₄ y d ]
     case-b-sub-cf _ _ _ failure = [ failure ]
 
+    -- BEGIN CASE-B-SUB-CF PROOF
+    
+    silly : (cf : CanonicalFactor) (e : Env) → evalWith e (CF.interpret cf) ≡ evalWith e (CP.interpret [ cf ])
+    silly cf e with evalWith e (CF.interpret cf)
+    ... | true = refl
+    ... | false = refl
+
+    silly′ : (cf : CanonicalFactor) (e : Env) → e satisfies (CF.interpret cf) → e satisfies (CP.interpret [ cf ])
+    silly′ cf e = subst T (silly cf e)
+
+    smaller-sub : X → (X × ℕ) → CanonicalFactor → Set
+    smaller-sub _ _ (form₁ _ _) = ⊥
+    smaller-sub t (s , k) (form₂ z y b z≢y) = (t ≡ y) × (k > b)
+    smaller-sub _ _ (form₃ _ _ _ _) = ⊥
+    smaller-sub _ _ (form₄ _ _) = ⊥
+    smaller-sub _ _ failure = ⊥
+
+    weird′ : {k b : ℕ} → k ≤ b → b ≡ (k ℕ+ (b ∸ k))
+    weird′ z≤n = refl
+    weird′ (s≤s k≤b) = cong suc (weird′ k≤b)
+
+    weird : {k b : ℕ} → k ≤ b → b ≡ ((b ∸ k) ℕ+ k)
+    weird {k} {b} k≤b = trans (weird′ k≤b) (+-comm k (b ∸ k)) 
+
+    pred* : (n x y : ℕ) → n ℕ+ x ≡ n ℕ+ y → x ≡ y
+    pred* zero x y eq = eq
+    pred* (suc n) x y eq = pred* n x y (cong pred eq)
+
+    pred*′ : (n x y : ℕ) → x ℕ+ n ≡ y ℕ+ n → x ≡ y
+    pred*′ n x y eq = pred* n x y (trans (+-comm n x) (trans eq (+-comm y n)))
+
+    ≰⇒≤' : {x y : ℕ} → ¬ (x ≤ y) → y ≤ x
+    ≰⇒≤' {zero} {y} x≰y = contradiction z≤n x≰y
+    ≰⇒≤' {suc x} {zero} _ = z≤n
+    ≰⇒≤' {suc x} {suc y} x≰y = s≤s (≰⇒≤' (x≰y ∘ s≤s))
+
+    werks : (t : X) (s : X) (k : ℕ) (cf : CanonicalFactor) (e : Env)
+      → (lookup e s) ≡ k ℕ+ (lookup e t)
+      → ¬ smaller-sub t (s , k) cf
+      → evalWith e (CF.interpret cf) ≡ evalWith e (CP.interpret (case-b-sub-cf t s k cf))
+    werks t s k (form₁ x a)           e s≡k+t nss = silly (form₁ x a) e
+    werks t s k (form₂ z  y  b z≢y)   e s≡k+t nss with t X≟ y
+    werks t s k (form₂ z  .t b z≢y)   e s≡k+t nss | yes refl with z X≟ s
+    werks t s k (form₂ .s .t b z≢y)   e s≡k+t nss | yes refl | yes refl with b ℕ≟ k
+    werks t s k (form₂ .s .t .k z≢y)  e s≡k+t nss | yes refl | yes refl | yes refl with (lookup e s) ℕ≟ (k ℕ+ (lookup e t))
+    werks t s k (form₂ .s .t .k z≢y)  e s≡k+t nss | yes refl | yes refl | yes refl | yes _    = refl
+    werks t s k (form₂ .s .t .k z≢y)  e s≡k+t nss | yes refl | yes refl | yes refl | no wrong = contradiction s≡k+t wrong
+    werks t s k (form₂ .s .t b z≢y)   e s≡k+t nss | yes refl | yes refl | no  b≢k with (lookup e s) ℕ≟ (b ℕ+ (lookup e t))
+    werks t s k (form₂ .s .t b z≢y)   e s≡k+t nss | yes refl | yes refl | no  b≢k | yes eq = ⊥-elim (b≢k (pred* (lookup e t) b k (
+      trans (trans (+-comm (lookup e t) b) (sym eq))
+            (trans s≡k+t (+-comm k (lookup e t))))))
+    werks t s k (form₂ .s .t b z≢y)   e s≡k+t nss | yes refl | yes refl | no  b≢k | no  _  = refl
+    
+    werks t s k (form₂ z  .t b z≢y)   e s≡k+t nss | yes refl | no z≢s with k ≤? b
+    werks t s k (form₂ z  .t b z≢y)   e s≡k+t nss | yes refl | no z≢s | yes k≤b with lookup e z | lookup e s | lookup e t | silly (form₂ z s (b ∸ k) z≢s) e
+    werks t s k (form₂ z  .t b z≢y)   e s≡k+t nss | yes refl | no z≢s | yes k≤b | ez | es | et | foo = trans (cong (λ rhs → ⌊ ez ℕ≟ rhs ⌋) (
+      trans (cong (λ x → x ℕ+ et) (weird k≤b))
+      (trans
+        (+-assoc (b ∸ k) k et)
+        (cong (λ x → (b ∸ k) ℕ+ x) (sym s≡k+t))))) foo
+    werks t s k (form₂ z  .t b z≢y)   e s≡k+t nss | yes refl | no z≢s | no  k≰b = ⊥-elim (nss (refl , ≰⇒> k≰b)) 
+    werks t s k (form₂ z  y  b z≢y)   e s≡k+t nss | no _ = silly (form₂ z y b z≢y) e
+    werks t s k (form₃ y₁ y₂ b y₁≢y₂) e s≡k+t nss with t X≟ y₁
+    werks t s k (form₃ .t y₂ b y₁≢y₂) e s≡k+t nss | yes refl with s X≟ y₂
+    werks t s k (form₃ .t .s b y₁≢y₂) e s≡k+t nss | yes refl | yes refl with (lookup e t) ℕ≟ b ℕ+ (lookup e s) | (k ℕ+ b) ℕ≟ zero
+    werks t s k (form₃ .t .s b y₁≢y₂) e s≡k+t nss | yes refl | yes refl | yes t=b+s | yes k+b=0 = refl
+    werks t s k (form₃ .t .s b y₁≢y₂) e s≡k+t nss | yes refl | yes refl | yes t=b+s | no  k+b≠0 = contradiction (pred* (lookup e s) (k ℕ+ b) zero
+      (trans (+-comm (lookup e s) (k ℕ+ b))
+            (trans (+-assoc k b (lookup e s))
+                   (trans (cong (λ x → k ℕ+ x) (sym t=b+s))
+                          (trans (sym s≡k+t)
+                                 (+-comm zero (lookup e s))))))) k+b≠0
+    werks t s k (form₃ .t .s b y₁≢y₂) e s≡k+t nss | yes refl | yes refl | no  t≠b+s | yes k+b=0 = contradiction (pred* k (lookup e t) (b ℕ+ (lookup e s))
+      (trans (sym s≡k+t)
+             (trans (cong (λ x → x ℕ+ (lookup e s)) (sym k+b=0))
+                    (+-assoc k b (lookup e s))))) t≠b+s
+    werks t s k (form₃ .t .s b y₁≢y₂) e s≡k+t nss | yes refl | yes refl | no  t≠b+s | no  k+b≠0 = refl
+    werks t s k (form₃ .t y₂ b y₁≢y₂) e s≡k+t nss | yes refl | no s≢y₂ with (lookup e t) ℕ≟ b ℕ+ (lookup e y₂) | (lookup e s) ℕ≟ (k ℕ+ b) ℕ+ (lookup e y₂)
+    werks t s k (form₃ .t y₂ b y₁≢y₂) e s≡k+t nss | yes refl | no s≢y₂ | yes _ | yes _ = refl
+    werks t s k (form₃ .t y₂ b y₁≢y₂) e s≡k+t nss | yes refl | no s≢y₂ | yes t=b+y | no  s≠k+b+y = contradiction
+      (trans s≡k+t
+             (trans (cong (λ x → k ℕ+ x)(t=b+y))
+                    (sym (+-assoc k b (lookup e y₂))))) s≠k+b+y
+    werks t s k (form₃ .t y₂ b y₁≢y₂) e s≡k+t nss | yes refl | no s≢y₂ | no  t≠b+y | yes s=k+b+y = contradiction
+      (pred* k (lookup e t) (b ℕ+ (lookup e y₂))
+        (trans (sym s≡k+t)
+               (trans s=k+b+y
+                      (+-assoc k b (lookup e y₂))))) t≠b+y
+    werks t s k (form₃ .t y₂ b y₁≢y₂) e s≡k+t nss | yes refl | no s≢y₂ | no _ | no _ = refl
+    
+    werks t s k (form₃ y₁ y₂ b y₁≢y₂) e s≡k+t nss | no _ with t X≟ y₂
+    werks t s k (form₃ y₁ .t b y₁≢y₂) e s≡k+t nss | no _ | yes refl with y₁ X≟ s
+    werks t s k (form₃ .s .t b y₁≢y₂) e s≡k+t nss | no _ | yes refl | yes refl with k ℕ≟ b
+    werks t s k (form₃ .s .t .k y₁≢y₂) e s≡k+t nss | no _ | yes refl | yes refl | yes refl with (lookup e s) ℕ≟ k ℕ+ (lookup e t)
+    werks t s k (form₃ .s .t .k y₁≢y₂) e s≡k+t nss | no _ | yes refl | yes refl | yes refl | yes _ = refl
+    werks t s k (form₃ .s .t .k y₁≢y₂) e s≡k+t nss | no _ | yes refl | yes refl | yes refl | no neq = contradiction s≡k+t neq
+    werks t s k (form₃ .s .t b y₁≢y₂) e s≡k+t nss | no _ | yes refl | yes refl | no  k≠b with (lookup e s) ℕ≟ b ℕ+ (lookup e t)
+    werks t s k (form₃ .s .t b y₁≢y₂) e s≡k+t nss | no _ | yes refl | yes refl | no  k≠b | yes eq = contradiction (pred*′ (lookup e t) k b (trans (sym s≡k+t) eq)) k≠b
+    werks t s k (form₃ .s .t b y₁≢y₂) e s≡k+t nss | no _ | yes refl | yes refl | no  k≠b | no _ = refl 
+    werks t s k (form₃ y₁ .t b y₁≢y₂) e s≡k+t nss | no _ | yes refl | no y₁≢s with k ≤? b
+    werks t s k (form₃ y₁ .t b y₁≢y₂) e s≡k+t nss | no _ | yes refl | no y₁≢s | yes k≤b with (lookup e y₁) ℕ≟ b ℕ+ (lookup e t) | (lookup e y₁) ℕ≟ (b ∸ k) ℕ+ (lookup e s)
+    werks t s k (form₃ y₁ .t b y₁≢y₂) e s≡k+t nss | no _ | yes refl | no y₁≢s | yes k≤b | yes _ | yes _ = refl
+    werks t s k (form₃ y₁ .t b y₁≢y₂) e s≡k+t nss | no _ | yes refl | no y₁≢s | yes k≤b | yes y=b+t | no y≠b-k+s = contradiction
+      (trans y=b+t
+             (trans (cong (λ x → x ℕ+ (lookup e t)) (weird k≤b))
+                    (trans (+-assoc (b ∸ k) k (lookup e t))
+                           (cong (λ x → ((b ∸ k) ℕ+ x)) (sym s≡k+t))))) y≠b-k+s
+    werks t s k (form₃ y₁ .t b y₁≢y₂) e s≡k+t nss | no _ | yes refl | no y₁≢s | yes k≤b | no  y≠b+t | yes y=b-k+s = contradiction
+      (trans y=b-k+s
+             (trans (cong (λ x → (b ∸ k) ℕ+ x) s≡k+t)
+                    (trans (sym (+-assoc (b ∸ k) k (lookup e t)))
+                           (sym (cong (λ x → x ℕ+ (lookup e t)) (weird k≤b)))))) y≠b+t
+    werks t s k (form₃ y₁ .t b y₁≢y₂) e s≡k+t nss | no _ | yes refl | no y₁≢s | yes k≤b | no _ | no _ = refl
+    werks t s k (form₃ y₁ .t b y₁≢y₂) e s≡k+t nss | no _ | yes refl | no y₁≢s | no  k≰b with (lookup e y₁) ℕ≟ b ℕ+ (lookup e t) | (lookup e s) ℕ≟ (k ∸ b) ℕ+ (lookup e y₁)
+    werks t s k (form₃ y₁ .t b y₁≢y₂) e s≡k+t nss | no _ | yes refl | no y₁≢s | no  k≰b | yes _ | yes _ = refl
+    werks t s k (form₃ y₁ .t b y₁≢y₂) e s≡k+t nss | no _ | yes refl | no y₁≢s | no  k≰b | yes y=b+t | no  s≠k-b+y = contradiction
+      (trans s≡k+t
+             (trans (cong (λ x → x ℕ+ (lookup e t)) (weird (≰⇒≤' k≰b)))
+                    (trans (+-assoc (k ∸ b) b (lookup e t))
+                           (cong (λ x → (k ∸ b) ℕ+ x) (sym y=b+t))))) s≠k-b+y
+    werks t s k (form₃ y₁ .t b y₁≢y₂) e s≡k+t nss | no _ | yes refl | no y₁≢s | no  k≰b | no  y≠b+t | yes s=k-b+y = contradiction
+      (pred* (k ∸ b) (lookup e y₁) (b ℕ+ (lookup e t)) (
+        (trans (sym s=k-b+y)
+               (trans s≡k+t
+                      (trans (cong (λ x → x ℕ+ (lookup e t)) (weird (≰⇒≤' k≰b)))
+                             (+-assoc (k ∸ b) b (lookup e t))))))) y≠b+t
+    werks t s k (form₃ y₁ .t b y₁≢y₂) e s≡k+t nss | no _ | yes refl | no y₁≢s | no  k≰b | no _ | no _ = refl
+    werks t s k (form₃ y₁ y₂ b y₁≢y₂) e s≡k+t nss | no _ | no _ = silly (form₃ y₁ y₂ b y₁≢y₂) e
+    werks t s k (form₄ y d)           e s≡k+t nss with t X≟ y
+    werks t s k (form₄ .t d)          e s≡k+t nss | yes refl with (lookup e t) ℕ≟ d | (lookup e s) ℕ≟ k ℕ+ d
+    werks t s k (form₄ .t d)          e s≡k+t nss | yes refl | yes eq | yes eq' = refl
+    werks t s k (form₄ .t d)          e s≡k+t nss | yes refl | yes eq | no neq' = contradiction (trans s≡k+t (cong (λ x → k ℕ+ x) eq)) neq'
+    werks t s k (form₄ .t d)          e s≡k+t nss | yes refl | no neq | yes eq' = contradiction (pred* k (lookup e t) d (trans (sym s≡k+t) eq')) neq
+    werks t s k (form₄ .t d)          e s≡k+t nss | yes refl | no neq | no neq' = refl
+    werks t s k (form₄ y d)           e s≡k+t nss | no _ = silly (form₄ y d) e
+    werks t s k failure               e s≡k+t nss = refl
+
+    
+
+{-
+
+    case-b-sub-cf t s k (form₃ y₁ y₂ b y₁≢y₂) with t X≟ y₁
+    case-b-sub-cf t s k (form₃ .t y₂ b t≢y₂ ) | yes refl with s X≟ y₂
+    case-b-sub-cf t s k (form₃ .t .s b t≢s  ) | yes refl | yes refl = if ⌊ (k ℕ+ b) ℕ≟ 0 ⌋ then [ failure ] else []
+    case-b-sub-cf t s k (form₃ .t y₂ b t≢y₂ ) | yes refl | no  s≢y₂ = [ form₃ s y₂ (k ℕ+ b) s≢y₂ ]
+    case-b-sub-cf t s k (form₃ y₁ y₂ b y₁≢y₂) | no _ with t X≟ y₂
+    case-b-sub-cf t s k (form₃ y₁ .t b y₁≢t ) | no _ | yes refl with y₁ X≟ s
+    case-b-sub-cf t s k (form₃ .s .t b y₁≢t ) | no _ | yes refl | yes refl = if ⌊ k ℕ≟ b ⌋ then [ failure ] else []
+    case-b-sub-cf t s k (form₃ y₁ .t b y₁≢t ) | no _ | yes refl | no  y₁≢s = if ⌊ k ≤? b ⌋
+      then [ form₃ y₁ s (b ∸ k) y₁≢s ]
+      else [ form₃ s y₁ (k ∸ b) (y₁≢s ∘ sym) ]
+    case-b-sub-cf t s k (form₃ y₁ y₂ b y₁≢y₂) | no _ | no _ = [ form₃ y₁ y₂ b y₁≢y₂ ]
+
+    Keep in mind, s=k+t.
+
+    k ≰ b  -> b ≤ k
+    in:  y₁≠b+t
+    out: s≠(k-b)+y
+
+    want y=b+t
+    have s=(k-b)+y
+            1   2       3                   4
+    (k-b)+y = s = k + t = ((k - b) + b) + t = (k - b) + (b + t)
+    1. (sym s=k-b+y)
+    2. s≡k+t
+    3. (cong (λ x → x ℕ+ (lookup e t)) (sym (weird (≰⇒≤' k≰b))))
+    4. (+-assoc (k ∸ b) b (lookup e t)
+
+
+      1       2                   3                   4
+    s = k + t = ((k ∸ b) + b) + t = (k ∸ b) + (b + t) = (k ∸ b) + y
+
+    1. s≡k+t
+    2. (cong (λ x → x ℕ+ (lookup e t)) (weird ?))
+    3. (+-assoc (k ∸ b) b (lookup e t))
+    4. (cong (λ x → (k ∸ b) ℕ+ x) (sym y=b+t)
+
+-}
+
+    -- END CASE-B-SUB-CF PROOF
+
     case-b-sub : (t : X) (s : X) (k : ℕ) → List CanonicalFactor → List CanonicalFactor
     case-b-sub t s k [] = []
     case-b-sub t s k (cf ∷ cfs) = (case-b-sub-cf t s k cf) ++ (case-b-sub t s k cfs)
 
+{-
+    possible-sub : X → CanonicalFactor → Set
+    possible-sub t (form₁ _ _)     = ⊥
+    possible-sub t (form₂ z y b _) = t ≡ y
+    possible-sub t (form₃ _ _ _ _) = ⊥
+    possible-sub t (form₄ _ _)     = ⊥
+    possible-sub t failure         = ⊥
 
+    possible-sub? : (t : X) (cf : CanonicalFactor) → Dec (possible-sub t cf)
+    possible-sub? t (form₁ _ _)     = no (λ ())
+    possible-sub? t (form₂ z y b _) = t X≟ y
+    possible-sub? t (form₃ _ _ _ _) = no (λ ())
+    possible-sub? t (form₄ _ _)     = no (λ ())
+    possible-sub? t failure         = no (λ ())
+
+    possible-subs : X → List CanonicalFactor → List CanonicalFactor
+    possible-subs t = Data.List.filter (λ cf → ⌊ possible-sub? t cf ⌋)
+
+    -- To do: criminal not to generalize this
+    possible-subs-prop : (t : X) (cfs : List CanonicalFactor) → allP (possible-sub t) (possible-subs t cfs)
+    possible-subs-prop _ [] = tt
+    possible-subs-prop t (cf ∷ cfs) with possible-sub? t cf
+    possible-subs-prop t (cf ∷ cfs) | yes itis = (itis , possible-subs-prop t cfs)
+    possible-subs-prop t (cf ∷ cfs) | no  _    = possible-subs-prop t cfs
+-}
+    -- smallest-sub : (t : X) (
+
+    
+
+    {-
     -- It might be more proof-conducive to generate a candidate list then pick the best (if it's nonempty).
     smallest-sub : X → List CanonicalFactor → Maybe (X × ℕ)
     smallest-sub t [] = nothing
@@ -893,31 +1127,59 @@ module SNDev {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
     smallest-sub t (form₃ _ _ _ _ ∷ cfs) = smallest-sub t cfs
     smallest-sub t (form₄ _ _ ∷ cfs) = smallest-sub t cfs
     smallest-sub t (failure ∷ cfs) = smallest-sub t cfs
+    -}
 
+    possible-sub : X → CanonicalFactor → Maybe (X × ℕ)
+    possible-sub t (form₁ _ _)     = nothing
+    possible-sub t (form₂ z y b _) = if ⌊ t X≟ y ⌋ then just (z , b) else nothing
+    possible-sub t (form₃ _ _ _ _) = nothing
+    possible-sub t (form₄ _ _)     = nothing
+    possible-sub t failure         = nothing
 
+    possible-subs : X → List CanonicalFactor → List (X × ℕ)
+    possible-subs t cfs = L.catMaybes (Data.List.map (possible-sub t) cfs)
+
+    smallest-sub : (X × ℕ) → List (X × ℕ) → (X × ℕ)
+    smallest-sub sub [] = sub
+    smallest-sub (s , b) ((s' , b') ∷ subs) with b ≤? b'
+    ... | yes _ = smallest-sub (s , b) subs
+    ... | no  _ = smallest-sub (s' , b') subs
+
+    {-
     -- filter
     dropIneqsWith : X → List CanonicalFactor → List CanonicalFactor
     dropIneqsWith t [] = []
     dropIneqsWith t (cf ∷ cfs) = if ⌊ CF.is≠? cf ⌋ ∧ ⌊ t CF.∈? cf ⌋
       then dropIneqsWith t cfs
       else cf ∷ (dropIneqsWith t cfs)
+    -}
 
-    -- tail recursion might be painful for later proofs
+    -- Prepend t≠0, t≠1, ... , t≠m-1.
     addIneqs : X → ℕ → List CanonicalFactor → List CanonicalFactor
     addIneqs t zero cfs = cfs
-    addIneqs t (suc m) cfs = addIneqs t m (form₄ t m ∷ cfs)
+    addIneqs t (suc m) cfs = (form₄ t m) ∷ (addIneqs t m cfs)
 
+    -- Eliminate a variable 't' of the second variety (kind₂) from a canonical product.
+    -- The general scheme is such:
+    --   * Determine whether t occurs in any equalities (necessarily of the form s = t + k)
+    --   * If so, find the one with the smallest k, and do as follows:
+    --      * Substitute t with s-k throughout the product
+    --      * Add the inequalities s≠0, s≠1, ... , s≠k-1 to the product
+    --   * If not, then t only occurs in inequalities (or not at all)
+    --      * Appropriate choice of t can always satisfy these
+    --      * So remove them from the product
     case-b : X → List CanonicalFactor → List CanonicalFactor
-    case-b t cfs with smallest-sub t cfs
-    ... | nothing      = dropIneqsWith t cfs
-    ... | just (s , k) = addIneqs s k (case-b-sub t s k cfs)
+    case-b t cfs with possible-subs t cfs
+    case-b t cfs | [] = case-a t cfs -- dropIneqsWith t cfs
+    case-b t cfs | (sub ∷ subs) with smallest-sub sub subs
+    case-b t cfs | (sub ∷ subs) | (s , k) = addIneqs s k (case-b-sub t s k cfs)
 
     qe-prod : X → List CanonicalFactor → List CanonicalFactor
-    qe-prod t cfs with CProd.kindOf t cfs
-    qe-prod t cfs | kind₀ = cfs
-    qe-prod t cfs | kind₁ = case-a t cfs
-    qe-prod t cfs | kind₂ = case-b t cfs
-    qe-prod t cfs | kind₃ = case-a t cfs
+    qe-prod t cfs with CP.kindOf t cfs
+    qe-prod t cfs | kind₀ = cfs           -- t does not appear                                                          => no change
+    qe-prod t cfs | kind₁ = case-a t cfs  -- there's exactly one term with t, of the form (t = a)                       => drop that term
+    qe-prod t cfs | kind₂ = case-b t cfs  -- there are term(s) of the form (z = t + b), (t ≠ y + b), and/or (y ≠ t + b) => less trivial
+    qe-prod t cfs | kind₃ = case-a t cfs  -- there's exactly one term with t, of the form (t = y + b)                   => drop that term
     
     qe-cf : X → List (List CanonicalFactor) → List (List CanonicalFactor)
     qe-cf t = Data.List.map (qe-prod t)
@@ -930,8 +1192,87 @@ module SNDev {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
     qe t φ = CForm.interpret (qe-cf t (toCF φ))
 
 
+{-
+    sat-head : {cf : CanonicalFactor} {cfs : List CanonicalFactor} {e : Env}
+      → e satisfies (CP.interpret (cf ∷ cfs))
+      → e satisfies (CF.interpret cf)
+    sat-head {cf} {cfs} {e} sat with evalWith e (CF.interpret cf) | evalWith e (CP.interpret cfs)
+    sat-head {cf} {cfs} {e} sat | true  | true  = tt
+    sat-head {cf} {cfs} {e} sat | true  | false = ⊥-elim sat
+    sat-head {cf} {cfs} {e} sat | false | true  = ⊥-elim sat
+    sat-head {cf} {cfs} {e} sat | false | false = ⊥-elim sat   
+    
+    sat-tail : {cf : CanonicalFactor} {cfs : List CanonicalFactor} {e : Env}
+      → e satisfies (CP.interpret (cf ∷ cfs))
+      → e satisfies (CP.interpret cfs)
+    sat-tail {cf} {cfs} {e} sat with evalWith e (CF.interpret cf) | evalWith e (CP.interpret cfs)
+    sat-tail {cf} {cfs} {e} sat | true  | true  = tt
+    sat-tail {cf} {cfs} {e} sat | true  | false = ⊥-elim sat
+    sat-tail {cf} {cfs} {e} sat | false | true  = ⊥-elim sat
+    sat-tail {cf} {cfs} {e} sat | false | false = ⊥-elim sat   
+-}
+
+    sat-head : (cf : CanonicalFactor) (cfs : List CanonicalFactor) (e : Env)
+      → e satisfies (CP.interpret (cf ∷ cfs))
+      → e satisfies (CF.interpret cf)
+    sat-head cf cfs e sat with evalWith e (CF.interpret cf) | evalWith e (CP.interpret cfs)
+    sat-head cf cfs e sat | true  | true  = tt
+    sat-head cf cfs e sat | true  | false = ⊥-elim sat
+    sat-head cf cfs e sat | false | true  = ⊥-elim sat
+    sat-head cf cfs e sat | false | false = ⊥-elim sat   
+    
+    sat-tail : (cf : CanonicalFactor) (cfs : List CanonicalFactor) (e : Env)
+      → e satisfies (CP.interpret (cf ∷ cfs))
+      → e satisfies (CP.interpret cfs)
+    sat-tail cf cfs e sat with evalWith e (CF.interpret cf) | evalWith e (CP.interpret cfs)
+    sat-tail cf cfs e sat | true  | true  = tt
+    sat-tail cf cfs e sat | true  | false = ⊥-elim sat
+    sat-tail cf cfs e sat | false | true  = ⊥-elim sat
+    sat-tail cf cfs e sat | false | false = ⊥-elim sat   
+
+
+    sat-∷ : (cf : CanonicalFactor) (cfs : List CanonicalFactor) (e : Env)
+      → e satisfies (CF.interpret cf)
+      → e satisfies (CP.interpret cfs)
+      → e satisfies (CP.interpret (cf ∷ cfs))
+    sat-∷ cf cfs e ecf ecfs with evalWith e (CF.interpret cf) | evalWith e (CP.interpret cfs)
+    ... | true  | true  = tt
+    ... | true  | false = ⊥-elim ecfs
+    ... | false | true  = ⊥-elim ecf
+    ... | false | false = ⊥-elim ecfs
+
+
+    case-a-works-fwd : (t : X) (cfs : List CanonicalFactor) (a : ℕ) (e : Env)
+      → ((t , a) ∷ e) satisfies (CP.interpret cfs) 
+      → e satisfies (CP.interpret (case-a t cfs))
+    case-a-works-fwd t [] a e sat = tt
+    case-a-works-fwd t (cf ∷ cfs) a e sat with t CF.∈? cf
+    -- ... | yes _ = case-a-works-fwd t cfs a e (sat-tail sat)
+    --... | no t∉ = sat-∷ cf (case-a t cfs) e (nodep-sat-drop (CF.interpret cf) t a e (CF.∉-nodep t cf t∉) (sat-head sat)) (case-a-works-fwd t cfs a e (sat-tail sat))
+    ... | yes _ = case-a-works-fwd t cfs a e (sat-tail cf cfs ((t , a) ∷ e) sat)
+    ... | no t∉ = sat-∷ cf (case-a t cfs) e
+      (nodep-sat-drop (CF.interpret cf) t a e (CF.∉-nodep t cf t∉) (sat-head cf cfs ((t , a) ∷ e) sat))
+      (case-a-works-fwd t cfs a e (sat-tail cf cfs ((t , a) ∷ e) sat))
+
+    --For case b, we'll want to find the sub term (s = t + k), noting that it must be satisfied, then run from there.
+    --This will be easiest with a lemma along the lines of smallestsub t cfs  = (s, k) → (form₂ s t k) `elem` cfs
+    --And cf `elem` cfs → e satisfies cfs → e satisfies cf
+    --Therefore e satisfies form₂ s t k
+    --Therefore ⟦s⟧e ≡ k + ⟦t⟧e
+    case-b-works-fwd : (t : X) (cfs : List CanonicalFactor) (a : ℕ) (e : Env)
+      → ((t , a) ∷ e) satisfies (CP.interpret cfs)
+      → e satisfies (CP.interpret (case-b t cfs))
+    case-b-works-fwd = {!!}
+
+    -- See https://stackoverflow.com/questions/27667359/agda-type-of-proofs-and-with-clause
+    -- and https://lists.chalmers.se/pipermail/agda/2011/003286.html
+    qe-prod-works-fwd : (t : X) (cfs : List CanonicalFactor) (a : ℕ) (e : Env)
+      → ((t , a) ∷ e) satisfies (CP.interpret cfs)
+      → e satisfies (CP.interpret (qe-prod t cfs))
+    qe-prod-works-fwd t cfs a e sat = {!!}
+    
     qe-works-fwd : (t : X) (φ : QF) (a : ℕ) (e : Env) → ((t , a) ∷ e) satisfies φ → e satisfies (qe t φ)
-    qe-works-fwd t φ a e sat = ?
+    qe-works-fwd t φ a e sat = {!!}
 
     qe-works-bwd : (t : X) (φ : QF) (e : Env) → e satisfies (qe t φ) → Σ ℕ (λ a → ((t , a) ∷ e) satisfies φ)
-    qe-works-bwd t φ e sat = ?
+    qe-works-bwd t φ e sat = {!!}
