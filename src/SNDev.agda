@@ -1038,96 +1038,12 @@ module SNDev {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
     werks t s k failure               e s≡k+t nss = refl
 
     
-
-{-
-
-    case-b-sub-cf t s k (form₃ y₁ y₂ b y₁≢y₂) with t X≟ y₁
-    case-b-sub-cf t s k (form₃ .t y₂ b t≢y₂ ) | yes refl with s X≟ y₂
-    case-b-sub-cf t s k (form₃ .t .s b t≢s  ) | yes refl | yes refl = if ⌊ (k ℕ+ b) ℕ≟ 0 ⌋ then [ failure ] else []
-    case-b-sub-cf t s k (form₃ .t y₂ b t≢y₂ ) | yes refl | no  s≢y₂ = [ form₃ s y₂ (k ℕ+ b) s≢y₂ ]
-    case-b-sub-cf t s k (form₃ y₁ y₂ b y₁≢y₂) | no _ with t X≟ y₂
-    case-b-sub-cf t s k (form₃ y₁ .t b y₁≢t ) | no _ | yes refl with y₁ X≟ s
-    case-b-sub-cf t s k (form₃ .s .t b y₁≢t ) | no _ | yes refl | yes refl = if ⌊ k ℕ≟ b ⌋ then [ failure ] else []
-    case-b-sub-cf t s k (form₃ y₁ .t b y₁≢t ) | no _ | yes refl | no  y₁≢s = if ⌊ k ≤? b ⌋
-      then [ form₃ y₁ s (b ∸ k) y₁≢s ]
-      else [ form₃ s y₁ (k ∸ b) (y₁≢s ∘ sym) ]
-    case-b-sub-cf t s k (form₃ y₁ y₂ b y₁≢y₂) | no _ | no _ = [ form₃ y₁ y₂ b y₁≢y₂ ]
-
-    Keep in mind, s=k+t.
-
-    k ≰ b  -> b ≤ k
-    in:  y₁≠b+t
-    out: s≠(k-b)+y
-
-    want y=b+t
-    have s=(k-b)+y
-            1   2       3                   4
-    (k-b)+y = s = k + t = ((k - b) + b) + t = (k - b) + (b + t)
-    1. (sym s=k-b+y)
-    2. s≡k+t
-    3. (cong (λ x → x ℕ+ (lookup e t)) (sym (weird (≰⇒≤' k≰b))))
-    4. (+-assoc (k ∸ b) b (lookup e t)
-
-
-      1       2                   3                   4
-    s = k + t = ((k ∸ b) + b) + t = (k ∸ b) + (b + t) = (k ∸ b) + y
-
-    1. s≡k+t
-    2. (cong (λ x → x ℕ+ (lookup e t)) (weird ?))
-    3. (+-assoc (k ∸ b) b (lookup e t))
-    4. (cong (λ x → (k ∸ b) ℕ+ x) (sym y=b+t)
-
--}
-
     -- END CASE-B-SUB-CF PROOF
 
     case-b-sub : (t : X) (s : X) (k : ℕ) → List CanonicalFactor → List CanonicalFactor
     case-b-sub t s k [] = []
     case-b-sub t s k (cf ∷ cfs) = (case-b-sub-cf t s k cf) ++ (case-b-sub t s k cfs)
 
-{-
-    possible-sub : X → CanonicalFactor → Set
-    possible-sub t (form₁ _ _)     = ⊥
-    possible-sub t (form₂ z y b _) = t ≡ y
-    possible-sub t (form₃ _ _ _ _) = ⊥
-    possible-sub t (form₄ _ _)     = ⊥
-    possible-sub t failure         = ⊥
-
-    possible-sub? : (t : X) (cf : CanonicalFactor) → Dec (possible-sub t cf)
-    possible-sub? t (form₁ _ _)     = no (λ ())
-    possible-sub? t (form₂ z y b _) = t X≟ y
-    possible-sub? t (form₃ _ _ _ _) = no (λ ())
-    possible-sub? t (form₄ _ _)     = no (λ ())
-    possible-sub? t failure         = no (λ ())
-
-    possible-subs : X → List CanonicalFactor → List CanonicalFactor
-    possible-subs t = Data.List.filter (λ cf → ⌊ possible-sub? t cf ⌋)
-
-    -- To do: criminal not to generalize this
-    possible-subs-prop : (t : X) (cfs : List CanonicalFactor) → allP (possible-sub t) (possible-subs t cfs)
-    possible-subs-prop _ [] = tt
-    possible-subs-prop t (cf ∷ cfs) with possible-sub? t cf
-    possible-subs-prop t (cf ∷ cfs) | yes itis = (itis , possible-subs-prop t cfs)
-    possible-subs-prop t (cf ∷ cfs) | no  _    = possible-subs-prop t cfs
--}
-    -- smallest-sub : (t : X) (
-
-    
-
-    {-
-    -- It might be more proof-conducive to generate a candidate list then pick the best (if it's nonempty).
-    smallest-sub : X → List CanonicalFactor → Maybe (X × ℕ)
-    smallest-sub t [] = nothing
-    smallest-sub t (form₁ _ _ ∷ cfs) = smallest-sub t cfs
-    smallest-sub t (form₂ z y  b _ ∷ cfs) with t X≟ y
-    smallest-sub t (form₂ z .t b _ ∷ cfs) | yes refl with smallest-sub t cfs
-    smallest-sub t (form₂ z .t b _ ∷ cfs) | yes refl | nothing = just (z , b)
-    smallest-sub t (form₂ z .t b _ ∷ cfs) | yes refl | just (s , k) = if ⌊ b ≤? k ⌋ then just (z , b) else just (s , k)
-    smallest-sub t (form₂ z y  b _ ∷ cfs) | no  _ = smallest-sub t cfs
-    smallest-sub t (form₃ _ _ _ _ ∷ cfs) = smallest-sub t cfs
-    smallest-sub t (form₄ _ _ ∷ cfs) = smallest-sub t cfs
-    smallest-sub t (failure ∷ cfs) = smallest-sub t cfs
-    -}
 
     possible-sub : X → CanonicalFactor → Maybe (X × ℕ)
     possible-sub t (form₁ _ _)     = nothing
@@ -1144,6 +1060,8 @@ module SNDev {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
     smallest-sub (s , b) ((s' , b') ∷ subs) with b ≤? b'
     ... | yes _ = smallest-sub (s , b) subs
     ... | no  _ = smallest-sub (s' , b') subs
+
+    
 
     {-
     -- filter
@@ -1173,6 +1091,52 @@ module SNDev {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
     case-b t cfs | [] = case-a t cfs -- dropIneqsWith t cfs
     case-b t cfs | (sub ∷ subs) with smallest-sub sub subs
     case-b t cfs | (sub ∷ subs) | (s , k) = addIneqs s k (case-b-sub t s k cfs)
+
+-- BEGIN PROVING CASE-B WORKS
+
+    ≤-refl : (x : ℕ) → x ≤ x
+    ≤-refl zero = z≤n
+    ≤-refl (suc x) = s≤s (≤-refl x)
+
+    ≤-trans : {a b c : ℕ} → a ≤ b → b ≤ c → a ≤ c
+    ≤-trans {.zero} {b} {c} z≤n _ = z≤n
+    ≤-trans (s≤s a≤b) (s≤s b≤c) = s≤s (≤-trans a≤b b≤c)
+
+    smallest-sub-smaller : (s₀ : X) (k₀ : ℕ) (subs : List (X × ℕ))
+      → (proj₂ (smallest-sub (s₀ , k₀) subs)) ≤ k₀
+    smallest-sub-smaller s₀ k₀ [] = ≤-refl k₀
+    smallest-sub-smaller s₀ k₀ ((s , k) ∷ subs) = {!!}
+
+    {-
+    sub-head-bound : (t : X) (s₀ : X) (k₀ : ℕ) (s : X) (k : X) (cfs : List CanonicalFactor)
+      → smallest-sub (s₀ , k₀) (possible-subs (
+   -}
+   {-
+    never-smaller : (t : X) (s₀ : X) (k₀ : ℕ) (cfs : List CanonicalFactor)
+      → allP (¬_ ∘ (smaller-sub t (smallest-sub (s₀ , k₀) (possible-subs t cfs)))) cfs
+    never-smaller t s₀ k₀ [] = tt
+    never-smaller t s₀ k₀ ((form₁ _ _) ∷ cfs) = ( (λ ()) , never-smaller t s₀ k₀ cfs)
+    never-smaller t s₀ k₀ ((form₂ z y b z≢y) ∷ cfs) with t X≟ y
+    never-smaller t s₀ k₀ ((form₂ z .t b z≢y) ∷ cfs) | yes refl = ?
+    never-smaller t s₀ k₀ ((form₂ z y b z≢y) ∷ cfs) | no _ = ( (λ ()) , never-smaller t s₀ k₀ cfs)
+    never-smaller t s₀ k₀ ((form₃ _ _ _ _) ∷ cfs) = ( (λ ()) , never-smaller t s₀ k₀ cfs)
+    never-smaller t s₀ k₀ ((form₄ _ _) ∷ cfs) = ( (λ ()) , never-smaller t s₀ k₀ cfs)
+    never-smaller t s₀ k₀ (failure ∷ cfs) = ( (λ ()) , never-smaller t s₀ k₀ cfs)
+   -}
+-- END
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     qe-prod : X → List CanonicalFactor → List CanonicalFactor
     qe-prod t cfs with CP.kindOf t cfs

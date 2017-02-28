@@ -15,6 +15,7 @@ module Common where
   open import Relation.Nullary.Negation public
   open import Relation.Nullary.Decidable hiding (map) public
   open import Relation.Nullary.Sum public
+  open import Relation.Nullary.Product public
   open import Relation.Binary.PropositionalEquality hiding ([_]) public
 
   relaxFin : {n : ℕ} → Fin n → Fin (suc n)
