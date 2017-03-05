@@ -15,14 +15,6 @@ module QE2 {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
 
   open ≡-Reasoning
 
-{-
-  open import SucNat.Base {X = X}
-  open import FirstKind
-  open import SucNat.FK {X = X}
-  open import SucNat.DecVar {X = X} {_≟_ = _X≟_}
-  open Proofs FKAxioms
--}
-
   data Base : Set where
     ∅ : Base
     var : X → Base
@@ -32,11 +24,6 @@ module QE2 {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
 
   data Atom : Set where
     _==_ : Term → Term → Atom
-
-{-
-  QF : Set
-  QF = FK Atom
--}
 
   data QF : Set where
     atom : Atom → QF
@@ -78,9 +65,6 @@ module QE2 {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
   ... | no ¬p | yes q = contradiction (g q) ¬p
   ... | no  _ | no  _ = refl
 
-  --ℕ≟-⇄ : {x₁ x₂ y₁ y₂ : ℕ} → ((x₁ ≡ x₂) → (y₁ ≡ y₂)) → ((y₁ ≡ y₂) → (x₁ ≡ x₂)) → ⌊ x₁ ℕ≟ x₂ ⌋ ≡ ⌊ y₁ ℕ≟ y₂ ⌋
-  --ℕ≟-⇄ = dec-⇄
-
   ≡-+-comm : {a b c d : ℕ} → a ℕ+ b ≡ c ℕ+ d → b ℕ+ a ≡ d ℕ+ c
   ≡-+-comm {a} {b} {c} {d} eq = trans (+-comm b a) (trans eq (+-comm c d))
 
@@ -111,9 +95,7 @@ module QE2 {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
   ... | yes eq = contradiction eq neq
   ... | no  _  = tt
 
-  --------------------------------------------
-  -- EVALUATING QF PROPOSITIONS (SEMANTICS) --
-  --------------------------------------------
+
 
   evalTerm : (X → ℕ) → Term → ℕ
   evalTerm e (S k ∅) = k
@@ -127,119 +109,8 @@ module QE2 {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
   evalQF f (~ p) = not (evalQF f p)
   evalQF f (p₁ ∪ p₂) = (evalQF f p₁) ∨ (evalQF f p₂)
 
-  
-
-{-
-  -- Evaluating a quantifier-free proposition ⇒ use the evaluation in FirstKind.agda, giving it the above means for evaluating atoms.
-  evalQF : (X → ℕ) → QF → Bool
-  evalQF e = eval (evalAtom e)
--}
-  -- Semantic equivalence
---  _⇔_ : QF → QF → Set
---  p₁ ⇔ p₂ = (f : X → ℕ) → (evalQF f p₁ ≡ evalQF f p₂)
-
-  {-
-  -- Handy lemmas...
-  evalTerm-tsuc : (e : X → ℕ) (t : Term zero) → evalTerm e (tsuc t) ≡ suc (evalTerm e t)
-  evalTerm-tsuc e (S k tzero) = refl
-  evalTerm-tsuc e (S k (appa ()))
-  evalTerm-tsuc e (S k (real x)) = refl
-  
-  evalTerm-+ℕ : (e : X → ℕ) (t : Term zero) (a : ℕ) → evalTerm e (t +ℕ a) ≡ a ℕ+ (evalTerm e t)
-  evalTerm-+ℕ e (S k tzero) a = refl
-  evalTerm-+ℕ e (S k (appa ()))
-  evalTerm-+ℕ e (S k (real x)) a = +-assoc a k (e x)
-
-  suc≡suc : {x y : ℕ} → suc x ≡ suc y → x ≡ y
-  suc≡suc {zero} {.zero} refl = refl
-  suc≡suc {suc m} {.(suc m)} refl = refl
-
-  x≠x+1+a : (x a : ℕ) → ¬ (x ≡ x ℕ+ (suc a))
-  x≠x+1+a zero a = λ ()
-  x≠x+1+a (suc x) a = (x≠x+1+a x a) ∘ suc≡suc
-
-  x≠1+a+x : (x a : ℕ) → ¬ (x ≡ (suc a) ℕ+ x)
-  x≠1+a+x x a eq = x≠x+1+a x a (trans eq (+-comm (suc a) x))
-
-  -- The axioms are valid.
-  happy : {p : FK (Atom zero)} → (e : X → ℕ) → FKAxioms p → T (eval (evalAtom e) p)
-  happy e (h1 x) with evalTerm e x
-  happy e (h1 x) | ⟦x⟧ with ⟦x⟧ ℕ≟ ⟦x⟧
-  happy e (h1 x) | ⟦x⟧ | (yes refl) = tt
-  happy e (h1 x) | ⟦x⟧ | (no  fail)  = contradiction refl fail
-  happy e (h2 x y) with (evalTerm e x) | (evalTerm e y) | (evalTerm e x) ℕ≟ (evalTerm e y) | (evalTerm e y) ℕ≟ (evalTerm e x)
-  happy e (h2 x y) | ⟦x⟧ | .⟦x⟧ | yes refl | yes refl = tt
-  happy e (h2 x y) | ⟦x⟧ | ⟦y⟧  | no  neq  | no  neq' = tt
-  happy e (h2 x y) | ⟦x⟧ | .⟦x⟧ | yes refl | no  fail = contradiction refl fail
-  happy e (h2 x y) | ⟦x⟧ | .⟦x⟧ | no  fail | yes refl = contradiction refl fail
-  happy e (h3 x y z) with (evalTerm e x) | (evalTerm e y) | (evalTerm e z) | (evalTerm e x) ℕ≟ (evalTerm e y) | (evalTerm e y) ℕ≟ (evalTerm e z) | (evalTerm e x) ℕ≟ (evalTerm e z)
-  happy e (h3 x y z) | ⟦x⟧ | ⟦y⟧ | ⟦z⟧ | no _  | no _  | no _  = tt
-  happy e (h3 x y z) | ⟦x⟧ | ⟦y⟧ | ⟦z⟧ | no _  | no _  | yes _ = tt
-  happy e (h3 x y z) | ⟦x⟧ | ⟦y⟧ | ⟦z⟧ | no _  | yes _ | no _  = tt
-  happy e (h3 x y z) | ⟦x⟧ | ⟦y⟧ | ⟦z⟧ | no _  | yes _ | yes _ = tt
-  happy e (h3 x y z) | ⟦x⟧ | ⟦y⟧ | ⟦z⟧ | yes _ | no _  | no _  = tt
-  happy e (h3 x y z) | ⟦x⟧ | ⟦y⟧ | ⟦z⟧ | yes _ | no _  | yes _ = tt
-  happy e (h3 x y z) | ⟦x⟧ | .⟦x⟧ | .⟦x⟧ | yes refl | yes refl | no fail  = contradiction refl fail
-  happy e (h3 x y z) | ⟦x⟧ | .⟦x⟧ | .⟦x⟧ | yes refl | yes refl | yes _ = tt
-  happy e (h4 x y) with evalTerm e x | evalTerm e y | evalTerm e (tsuc x) | evalTerm e (tsuc y) | evalTerm-tsuc e x | evalTerm-tsuc e y | (evalTerm e x) ℕ≟ (evalTerm e y)
-  happy e (h4 x y) | ⟦x⟧ | .⟦x⟧ | .(suc ⟦x⟧) | .(suc ⟦x⟧) | refl | refl | yes refl with (suc ⟦x⟧) ℕ≟ (suc ⟦x⟧)
-  happy e (h4 x y) | ⟦x⟧ | .⟦x⟧ | .(suc ⟦x⟧) | .(suc ⟦x⟧) | refl | refl | yes refl | yes refl = tt
-  happy e (h4 x y) | ⟦x⟧ | .⟦x⟧ | .(suc ⟦x⟧) | .(suc ⟦x⟧) | refl | refl | yes refl | no  fail = contradiction refl fail
-  happy e (h4 x y) | ⟦x⟧ |  ⟦y⟧ | .(suc ⟦x⟧) | .(suc ⟦y⟧) | refl | refl | no noteq with (suc ⟦x⟧) ℕ≟ (suc ⟦y⟧)
-  happy e (h4 x y) | ⟦x⟧ |  ⟦y⟧ | .(suc ⟦x⟧) | .(suc ⟦y⟧) | refl | refl | no noteq | yes suceq = contradiction suceq (noteq ∘ suc≡suc)
-  happy e (h4 x y) | ⟦x⟧ |  ⟦y⟧ | .(suc ⟦x⟧) | .(suc ⟦y⟧) | refl | refl | no noteq | no  nope = tt
-  happy e (h5 x) with evalTerm e x | evalTerm e (tsuc x) | evalTerm-tsuc e x
-  happy e (h5 x) | ⟦x⟧ | .(suc ⟦x⟧) | refl = tt
-  happy e (h6 x a) with evalTerm e x | evalTerm e (x +ℕ (suc a)) | evalTerm-+ℕ e x (suc a) 
-  happy e (h6 x a) | ⟦x⟧ | .((suc a) ℕ+ ⟦x⟧) | refl with ⟦x⟧ ℕ≟ (suc a) ℕ+ ⟦x⟧
-  happy e (h6 x a) | ⟦x⟧ | .((suc a) ℕ+ ⟦x⟧) | refl | yes itdoes = contradiction itdoes (x≠1+a+x ⟦x⟧ a)
-  happy e (h6 x a) | ⟦x⟧ | .((suc a) ℕ+ ⟦x⟧) | refl | no _ = tt
-
-  -- P₁ ≡ P₂ → ⟦P₁⟧ₑ ≡ ⟦P₂⟧ₑ
-  -- Logically equivalence propositions have equivalent (read: identical) semantics.
-  evalQF-≣ : {p₁ p₂ : QF} → ⊢ p₁ ≣ p₂ → p₁ ⇔ p₂
-  evalQF-≣ {p₁} {p₂} eq e with evalQF e p₁ | evalQF e p₂ | provableTrue (evalAtom e) (happy e) (&-elim₁' eq) | provableTrue (evalAtom e) (happy e) (&-elim₂' eq)
-  ... | true  | true  | 1⇒2 | 2⇒1 = refl
-  ... | false | false | 1⇒2 | 2⇒1 = refl
-  ... | true  | false | 1⇒2 | 2⇒1 = ⊥-elim 1⇒2
-  ... | false | true  | 1⇒2 | 2⇒1 = ⊥-elim 2⇒1
-
-  substitute-term : X → ℕ → Term zero → Term zero
-  substitute-term x a (S k tzero) = S k tzero
-  substitute-term x a (S k (real y)) = if ⌊ x X≟ y ⌋ then S (k ℕ+ a) tzero else S k (real y)
-  substitute-term x a (S k (appa ()))
-
-  -- substitute a number in place of a variable
-  substitute : X → ℕ → QF → QF
-  substitute x a (atom (t₁ == t₂)) = atom ((substitute-term x a t₁) == (substitute-term x a t₂))
-  substitute x a (~ p) = ~ substitute x a p
-  substitute x a (p₁ ∪ p₂) = (substitute x a p₁) ∪ (substitute x a p₂)
-
-  evalTerm-substitute : (x : X) (a : ℕ) (e : X → ℕ) → e x ≡ a → (t : Term zero) → evalTerm e t ≡ evalTerm e (substitute-term x a t)
-  evalTerm-substitute x a e eq (S k tzero) = refl
-  evalTerm-substitute x a e eq (S k (real y)) with y | x X≟ y
-  ... | .x | yes refl = cong (λ z → k ℕ+ z) eq
-  ... |  _ | no  diff = refl
-  evalTerm-substitute x a e eq (S k (appa ()))
-
-  -- Replacing a variable with the value it has does not alter the semantics.
-  evalQF-substitute : (x : X) (a : ℕ) (e : X → ℕ) → e x ≡ a → (p : QF) → evalQF e p ≡ evalQF e (substitute x a p)
-  evalQF-substitute x a e eq (atom (t₁ == t₂)) = cong₂ (λ m n → ⌊ m ℕ≟ n ⌋) (evalTerm-substitute x a e eq t₁) (evalTerm-substitute x a e eq t₂)
-  evalQF-substitute x a e eq (~ p) = cong not (evalQF-substitute x a e eq p)
-  evalQF-substitute x a e eq (p₁ ∪ p₂) = cong₂ _∨_ (evalQF-substitute x a e eq p₁) (evalQF-substitute x a e eq p₂)
-  -}
-  
-  {-
-  -- If P ≡ P', then (A & P) ≡ (A & P')
-  &-≣ : {P P' : QF} (A : QF) → ⊢ P ≣ P' → ⊢ (A & P) ≣ (A & P')
-  &-≣ {P} {P'} A eq = {!!}
-  -}
 
   module Environment where
-    depends-term : Term → X → Set
-    depends-term (S k ∅) _ = ⊥
-    depends-term (S k (var x)) t = t ≡ x
-
 
     Env : Set
     Env = List (X × ℕ)
@@ -272,7 +143,6 @@ module QE2 {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
 
   -- Some things about terms
   module T where
-
     _∈_ : X → Term → Set
     x ∈ (S _ b) = x B.∈ b
 
@@ -376,7 +246,9 @@ module QE2 {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
     ∉-nodep : (t : X) (f : Factor) → ¬ t ∈ f → ¬ depends t (i f)
     ∉-nodep t f = contraposition (depends-∈ t f)
 
-
+    ∉-eval : (t : X) (f : Factor) (a : ℕ) (e : Env) → ¬ t ∈ f → eval ((t , a) ∷ e) (i f) ≡ eval e (i f)
+    ∉-eval t (+F atm) a e t∉f = A.∉-eval t atm a e t∉f
+    ∉-eval t (-F atm) a e t∉f = cong not (A.∉-eval t atm a e t∉f)
 
   -- Various operations of products of factors
   module P where
@@ -442,9 +314,10 @@ module QE2 {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
 
   -- Various operations on sums of products of factors (i.e., dnf)
   module SoP where
-    interpret : List (List Factor) → QF
-    interpret [] = F.interpret 0≠0
-    interpret (p ∷ ps) = (P.interpret p) ∪ (interpret ps)
+    i : List (List Factor) → QF
+    i [] = F.i 0≠0
+    i (p ∷ ps) = (P.i p) ∪ (i ps)
+
 
   -- Helpful list operations
   module L {A : Set} where
@@ -460,17 +333,14 @@ module QE2 {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
     mapAllP _ [] _ = []
     mapAllP f (a ∷ as) (pa , allpas) = f a pa ∷ mapAllP f as allpas
 
-    remove : {a : A} {xs : List A} → a ∈ xs → List A
-    remove (here a xs) = xs
-    remove (there x a∈xs) = x ∷ remove a∈xs
+    ∈-++₁ : (a : A) (xs ys : List A) → a ∈ xs → a ∈ (xs ++ ys)
+    ∈-++₁ a [] ys ()
+    ∈-++₁ a (.a ∷ xs) ys (here .a .xs) = here a (xs ++ ys)
+    ∈-++₁ a (x ∷ xs) ys (there .x x∈xs) = there x (∈-++₁ a xs ys x∈xs)
 
-    toFront : {a : A} {xs : List A} → a ∈ xs → List A
-    toFront {a = a} it = a ∷ remove it
-
-    catMaybes : List (Maybe A) → List A
-    catMaybes [] = []
-    catMaybes (nothing ∷ xs) = catMaybes xs
-    catMaybes (just x ∷ xs) = x ∷ catMaybes xs
+    ∈-++₂ : (a : A) (xs ys : List A) → a ∈ ys → a ∈ (xs ++ ys)
+    ∈-++₂ a [] ys a∈ys = a∈ys
+    ∈-++₂ a (x ∷ xs) ys a∈ys = there x (∈-++₂ a xs ys a∈ys)
 
     first : (P : A → Set) (P? : (a : A) → Dec (P a))  (as : List A) → (Σ A (λ a → (P a) × (a ∈ as))) ⊎ (allP (¬_ ∘ P) as)
     first P P? [] = inj₂ tt
@@ -497,34 +367,6 @@ module QE2 {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
       subL : (k : ℕ) (term : Term) → ¬ t T.∈ term → subFactor t (+F (S k (var t) == term))
       subR : (k : ℕ) (term : Term) → ¬ t T.∈ term → subFactor t (+F (term == S k (var t)))
 
-
-    {-
-    -- Sufficient criteria for being a subFactor
-    sub-criteria : {t : X} {L R : Term} → ((t T.∈ L) × (¬ t T.∈ R)) ⊎ ((t T.∈ R) × (¬ t T.∈ L)) → subFactor t (+F (L == R))
-    sub-criteria {t} {S k (var .t)} {term} (inj₁ (refl , t∉term)) = subL k term t∉term
-    sub-criteria {t} {S k ∅} {term} (inj₁ (() , _))
-    sub-criteria {t} {term} {S k (var .t)} (inj₂ (refl , t∉term)) = subR k term t∉term
-    sub-criteria {t} {term} {S k ∅} (inj₂ (() , _))
-
-    -- Criteria are necessary as well
-    sub-criteria′ : {t : X} {L R : Term} → subFactor t (+F (L == R)) → ((t T.∈ L) × (¬ t T.∈ R)) ⊎ ((t T.∈ R) × (¬ t T.∈ L))
-    sub-criteria′ (subL k term t∉term) = inj₁ (refl , t∉term)
-    sub-criteria′ (subR k term t∉term) = inj₂ (refl , t∉term)
-
-
-    subFactor? : (t : X) (f : Factor) → Dec (subFactor t f)
-    subFactor? t (+F (L == R)) with            t T.∈? L | t T.∈? R
-    subFactor? t (+F (L == R))               | yes t∈L  | yes t∈R  = no
-      ([ contradiction t∈R ∘ proj₂ , contradiction t∈L ∘ proj₂ ]′ ∘ sub-criteria′)
-    subFactor? t (+F (S k (var .t) == term)) | yes refl | no  t∉R  = yes (subL k term t∉R)
-    subFactor? t (+F (S _ ∅ == _))           | yes ()   | no _
-    subFactor? t (+F (term == S k (var .t))) | no  t∉L  | yes refl = yes (subR k term t∉L)
-    subFactor? t (+F (_ == S _ ∅))           | no  _    | yes ()
-    subFactor? t (+F (L == R))               | no  t∉L  | no  t∉R  = no
-      ([ flip contradiction t∉L ∘ proj₁ , flip contradiction t∉R ∘ proj₁ ]′ ∘ sub-criteria′)
-    subFactor? t (-F _) = no (λ ())
-    -}
-
     -- Sufficient criteria for being a subFactor
     sub-criteria : {t : X} {L R : Term} → ((t T.∈ L) × (¬ t T.∈ R)) ⊎ ((t T.∈ R) × (¬ t T.∈ L)) → subFactor t (+F (L == R))
     sub-criteria {t} {S k (var .t)} {term} (inj₁ (refl , t∉term)) = subL k term t∉term
@@ -536,8 +378,6 @@ module QE2 {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
     sub-criteria′ : {t : X} {L R : Term} → subFactor t (+F (L == R)) → ((t T.∈ L) × (¬ t T.∈ R)) ⊎ ((t T.∈ R) × (¬ t T.∈ L))
     sub-criteria′ {t} {S .k (var .t)} {.term} (subL k term t∉term) = inj₁ (refl , t∉term)
     sub-criteria′ {t} {.term} {S .k (var .t)} (subR k term t∉term) = inj₂ (refl , t∉term)
-    --sub-criteria′ = ?
-
 
     subFactor? : (t : X) (f : Factor) → Dec (subFactor t f)
     subFactor? t (+F (L == R)) with            t T.∈? L | t T.∈? R
@@ -551,49 +391,15 @@ module QE2 {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
       ([ flip contradiction t∉L ∘ proj₁ , flip contradiction t∉R ∘ proj₁ ]′ ∘ sub-criteria′)
     subFactor? t (-F _) = no (λ ())    
 
-{-
-    subFactor : X → Factor → Set
-    subFactor t (+F (term₁ == term₂)) = ((t T.∈ term₁) × (¬ (t T.∈ term₂))) ⊎ ((t T.∈ term₂) × (¬ (t T.∈ term₁)))
-    subFactor _ (-F _) = ⊥
-
-    subFactor? : (t : X) (f : Factor) → Dec (subFactor t f)
-    subFactor? t (+F (term₁ == term₂)) = ((t T.∈? term₁) ×-dec (¬? (t T.∈? term₂))) ⊎-dec ((t T.∈? term₂) ×-dec (¬? (t T.∈? term₁)))
-    subFactor? _ (-F _) = no (λ ())
--}
-
     record Sub (t : X) : Set where
       constructor substitution
       field
         k : ℕ
         term : Term
 
---    data Sub (t : X) : Set where
---      substitution : ℕ → (term : Term) → Sub t
-
-{-
-    getSub : (t : X) (f : Factor) → subFactor t f → Sub t
-    getSub t (+F (S a ∅ == S b ∅)) (inj₁ (() , _))
-    getSub t (+F (S a ∅ == S b ∅)) (inj₂ (() , _))
-    getSub t (+F (S a ∅ == S b (var _))) (inj₁ (() , _))
-    getSub t (+F (S a ∅ == S b (var .t))) (inj₂ (refl , _)) = substitution b (S a ∅)
-    getSub t (+F (S a (var .t) == S b ∅)) (inj₁ (refl , _)) = substitution a (S b ∅)
-    getSub t (+F (S a (var _) == S b ∅)) (inj₂ (() , _))
-    getSub t (+F (S a (var .t) == S b (var s))) (inj₁ (refl , t∉R)) = substitution a (S b (var s))
-    getSub t (+F (S a (var s) == S b (var .t))) (inj₂ (refl , t∉L)) = substitution b (S a (var s))
-    getSub t (-F _) ()
--}
-    {-
-    -- Newer
-    getSub : (t : X) (f : Factor) → subFactor t f → Sub t
-    getSub t (+F (S a₁ b₁ == S a₂ b₂)) (inj₂ _) = substitution a₂ (S a₁ b₁)
-    getSub t (+F (S a₁ b₁ == S a₂ b₂)) (inj₁ _) = substitution a₁ (S a₂ b₂)
-    getSub t (-F _) ()
-    -}
-
     getSub : (t : X) (f : Factor) → subFactor t f → Sub t
     getSub t _ (subL k term _) = substitution k term
     getSub t _ (subR k term _) = substitution k term
-    --getSub t (-F _) ()
 
     iSub : {t : X} → Sub t → Factor
     iSub {t} (substitution k term) = +F (S k (var t) == term)
@@ -602,18 +408,6 @@ module QE2 {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
     getSub-works t (+F (S .k (var .t) == .term)) (subL k term _) e = refl
     getSub-works t (+F (.term == S .k (var .t))) (subR k term _) e = F.swap-⇔ (+F (term == S k (var t))) e
 
-{-
-    getSub-works : (t : X) (f : Factor) (sf : subFactor t f) → F.i (iSub (getSub t f sf)) ⇔ F.i f
-    getSub-works t (+F (S a ∅ == S b ∅)) (inj₁ (() , _))
-    getSub-works t (+F (S a ∅ == S b ∅)) (inj₂ (() , _))
-    getSub-works t (+F (S a ∅ == S b (var _))) (inj₁ (() , _))
-    getSub-works t (+F (S a ∅ == S b (var .t))) (inj₂ (refl , _)) e = F.swap-⇔ (+F (S a ∅ == S b (var t))) e
-    getSub-works t (+F (S a (var .t) == S b ∅)) (inj₁ (refl , _)) e = refl
-    getSub-works t (+F (S a (var _) == S b ∅)) (inj₂ (() , _))
-    getSub-works t (+F (S a (var .t) == S b (var s))) (inj₁ (refl , t∉R)) e = refl 
-    getSub-works t (+F (S a (var s) == S b (var .t))) (inj₂ (refl , t∉L)) e = F.swap-⇔ (+F (S a (var s) == S b (var t))) e
-    getSub-works t (-F _) ()
--}    
 
     -- Replace a factor f with an equivalent one, under the assumption that f is not a substitution factor (and no others exist).
     -- Only job is to remove t; no need to deal with identities and contradictions.
@@ -621,28 +415,6 @@ module QE2 {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
     -- the only terms involving t will be tautologies (equiv to 0=0), contradictions (equiv to 0≠0), or inequalities. Thus t can
     -- be chosen to avoid violating any of the inequalities, as they are its only restrictions.
     replace-factor-nosub : (t : X) (f : Factor) → (¬ subFactor t f) → Factor
-    {-
-    replace-factor-nosub t (+F (S a ∅ == S b ∅)) _ = (+F (S a ∅ == S b ∅))
-    replace-factor-nosub t (+F (S a ∅ == S b (var x))) _ = (+F (S a ∅ == S b (var x))) -- x≢t
-    replace-factor-nosub t (+F (S a (var x) == S b ∅)) _ = (+F (S a (var x) == S b ∅)) -- x≢t
-    replace-factor-nosub t (+F (S a (var x)  == S b (var y)))  nosub with t X≟ x | t X≟ y
-    replace-factor-nosub t (+F (S a (var .t) == S b (var .t))) nosub | yes refl | yes refl = +F (S a ∅ == S b ∅)
-    replace-factor-nosub t (+F (S a (var .t) == S b (var s)))  nosub | yes refl | no  t≢s  = contradiction (inj₁ (refl , t≢s)) nosub
-    replace-factor-nosub t (+F (S a (var s)  == S b (var .t))) nosub | no  t≢s  | yes refl = contradiction (inj₂ (refl , t≢s)) nosub
-    replace-factor-nosub t (+F (S a (var s)  == S b (var r)))  nosub | no  _    | no  _    = +F (S a (var s) == S b (var r))
-    replace-factor-nosub t (-F (S a ∅ == S b ∅)) _ = (-F (S a ∅ == S b ∅))
-    replace-factor-nosub t (-F (S a ∅ == S b (var x))) _ with t X≟ x
-    replace-factor-nosub t (-F (S a ∅ == S b (var .t))) _ | yes refl = 0=0 -- can always satisfy inequality
-    replace-factor-nosub t (-F (S a ∅ == S b (var x)))  _ | no _ = (-F (S a ∅ == S b (var x)))
-    replace-factor-nosub t (-F (S a (var x) == S b ∅)) _ with t X≟ x
-    replace-factor-nosub t (-F (S a (var .t) == S b ∅)) _ | yes refl = 0=0 -- can always satisfy inequality
-    replace-factor-nosub t (-F (S a (var x) == S b ∅))  _ | no _ = (-F (S a (var x) == S b ∅))
-    replace-factor-nosub t (-F (S a (var x)  == S b (var y))) _ with t X≟ x | t X≟ y
-    replace-factor-nosub t (-F (S a (var .t)  == S b (var .t))) _ | yes refl | yes refl = (-F (S a ∅ == S b ∅))
-    replace-factor-nosub t (-F (S a (var .t)  == S b (var y)))  _ | yes refl | no _ = 0=0
-    replace-factor-nosub t (-F (S a (var x)  == S b (var .t)))  _ | no _ | yes refl = 0=0 -- same
-    replace-factor-nosub t (-F (S a (var x)  == S b (var y)))   _ | no _ | no _ = (-F (S a (var x)  == S b (var y)))
-    -}
     replace-factor-nosub t (+F (L == R)) ns with t T.∈? L | t T.∈? R
     replace-factor-nosub t (+F (L == R)) ns | yes _   | yes _   = +F (T.dropBase L == T.dropBase R)
     replace-factor-nosub t (+F (L == R)) ns | yes t∈L | no  t∉R = contradiction (sub-criteria (inj₁ (t∈L , t∉R))) ns
@@ -653,8 +425,6 @@ module QE2 {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
     replace-factor-nosub t (-F (L == R)) ns | yes _ | no  _ = 0=0
     replace-factor-nosub t (-F (L == R)) ns | no  _ | yes _ = 0=0
     replace-factor-nosub t (-F (L == R)) ns | no  _ | no  _ = -F (L == R)
-    
-    
 
     replace-atom-sub : (t : X) → Sub t → Atom → Atom
     replace-atom-sub t (substitution k term) (L == R) with t T.∈? L | t T.∈? R
@@ -687,24 +457,9 @@ module QE2 {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
   -- ∉
   module DoesElim where
 
-    {-
-    subterm-∉ : (t : X) (f : Factor) (fsub : subFactor t f) → ¬ t T.∈ Sub.term (getSub t f fsub)
-    subterm-∉ t (+F (S a ∅ == S b ∅)) (inj₁ (() , _))
-    subterm-∉ t (+F (S a ∅ == S b ∅)) (inj₂ (() , _))
-    subterm-∉ t (+F (S a ∅ == S b (var _))) (inj₁ (() , _))
-    subterm-∉ t (+F (S a ∅ == S b (var .t))) (inj₂ (refl , _)) = λ ()
-    subterm-∉ t (+F (S a (var .t) == S b ∅)) (inj₁ (refl , _)) = λ ()
-    subterm-∉ t (+F (S a (var _) == S b ∅)) (inj₂ (() , _))
-    subterm-∉ t (+F (S a (var .t) == S b (var s))) (inj₁ (refl , t∉R)) = t∉R
-    subterm-∉ t (+F (S a (var s) == S b (var .t))) (inj₂ (refl , t∉L)) = t∉L
-    subterm-∉ t (-F x) ()
-    -}
-
     subterm-∉ : (t : X) (f : Factor) (fsub : subFactor t f) → ¬ t T.∈ Sub.term (getSub t f fsub)
     subterm-∉ t _ (subL _ term t∉term) = t∉term
     subterm-∉ t _ (subR _ term t∉term) = t∉term
-    
-
 
     dropBase-∉ : (t : X) (term : Term) → ¬ t T.∈ T.dropBase term
     dropBase-∉ t (S a ∅) = λ ()
@@ -791,7 +546,6 @@ module QE2 {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
     nosub-factor-fwd t (-F (L == R)) ns e sat | no  _ | yes _ = tt -- 0=0
     nosub-factor-fwd t (-F (L == R)) ns e sat | no  _ | no  _ = sat -- -F (L == R)
 
-    
     nosub-fwd : (t : X) (fs : List Factor) (ns : allP (¬_ ∘ (subFactor t)) fs) (e : Env)
       → e satisfies (P.i fs)
       → e satisfies (P.i (L.mapAllP (replace-factor-nosub t) fs ns))
@@ -799,7 +553,6 @@ module QE2 {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
     nosub-fwd t (f ∷ fs) (fns , fsns) e sat = sat-∷ e (replace-factor-nosub t f fns) (L.mapAllP (replace-factor-nosub t) fs fsns)
       (nosub-factor-fwd t f fns e (sat-head e f fs sat))
       (nosub-fwd t fs fsns e (sat-tail e f fs sat)) 
-
 
     sub-lemma : (t : X) (k : ℕ) (term : Term) (e : Env) (a : ℕ) (foo : Term) → T (eval e (F.i (iSub (substitution k term))))
       → eval e (A.i (T.replaceBase term (S a (var t)) == T.add k foo)) ≡ eval e (A.i (S a (var t) == foo))
@@ -863,13 +616,11 @@ module QE2 {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
     replace-factor-sub-equiv t sub (+F atm) e Tsub = replace-atom-sub-equiv t sub atm e Tsub
     replace-factor-sub-equiv t sub (-F atm) e Tsub = cong not (replace-atom-sub-equiv t sub atm e Tsub)
 
-
     replace-prod-sub-equiv : (t : X) (sub : Sub t) (fs : List Factor) (e : Env)
       → e satisfies (F.i (iSub sub))
       → eval e (P.i (Data.List.map (replace-factor-sub t sub) fs)) ≡ eval e (P.i fs)
     replace-prod-sub-equiv _ _ [] _ _ = refl
     replace-prod-sub-equiv t sub (f ∷ fs) e Tsub = cong₂ dual-and (replace-factor-sub-equiv t sub f e Tsub) (replace-prod-sub-equiv t sub fs e Tsub)
-
 
     ≤-or-≡ : {a b : ℕ} → a ≤ b → (suc a ≤ b) ⊎ (a ≡ b)
     ≤-or-≡ {zero}  {zero}  _ = inj₂ refl
@@ -890,7 +641,6 @@ module QE2 {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
     ineqs′-≤ (suc k) term e sat | no  k≠term | k≤term | inj₁ sk≤term = sk≤term
     ineqs′-≤ (suc k) term e sat | no  k≠term | k≤term | inj₂ k=term = contradiction k=term k≠term
 
-
     pred≤ : {a b : ℕ} → (suc a) ≤ b → a ≤ b
     pred≤ {zero} _ = z≤n
     pred≤ {suc a} {zero} ()
@@ -909,7 +659,6 @@ module QE2 {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
     ≤-ineqs′ zero _ _ _ = tt
     ≤-ineqs′ (suc k) term e sk≤term = sat-∷ e (-F (term == S k ∅)) (ineqs′ k term) (≤-ineqs′-helper k term e sk≤term) (≤-ineqs′ k term e (pred≤ sk≤term))
     
-
     ∈-sat : (f : Factor) (fs : List Factor) → f L.∈ fs → (e : Env) → e satisfies (P.i fs) → e satisfies (F.i f)
     ∈-sat _ [] ()
     ∈-sat f (.f ∷ .fs) (here .f fs)  e = sat-head e f fs
@@ -922,16 +671,6 @@ module QE2 {X : Set} {_X≟_ : Decidable {A = X} _≡_ } where
     ∉-sat′ : (t : X) (fs : List Factor) (a : ℕ) (e : Env) → ¬ t P.∈ fs → e satisfies (P.i fs) → ((t , a) ∷ e) satisfies (P.i fs)
     ∉-sat′ t fs a e t∉fs sat = subst T (sym (nodep-eval t (P.i fs) a e (P.∉-nodep t fs t∉fs))) sat
 
-{-
-Note:
-* the sub factor is k + t = term   or  term = k + t
-
-    _⇔_ : QF → QF → Set
-    ... = (e : Env) → eval e p₁ ≡ eval e p₂
-    
-    getSub-works : (t : X) (f : Factor) (sf : subFactor t f) → F.i (iSub (getSub t f sf)) ⇔ F.i f
--}
-
     ≡-≤ : {a b : ℕ} → a ≡ b → a ≤ b
     ≡-≤ {zero} {.zero} refl = z≤n
     ≡-≤ {suc a} {suc .a} refl = s≤s (≡-≤ refl)
@@ -939,6 +678,18 @@ Note:
     ≤-suc : {a b : ℕ} → a ≤ b → a ≤ suc b
     ≤-suc z≤n = z≤n
     ≤-suc (s≤s a≤b) = s≤s (≤-suc a≤b)
+
+    suc-≰ : (a : ℕ) → ¬ (suc a) ≤ a
+    suc-≰ zero ()
+    suc-≰ (suc a) (s≤s sa≤a) = suc-≰ a sa≤a
+
+    +≤₂ : (a b c : ℕ) → a ℕ+ b ≤ c → b ≤ c
+    +≤₂ zero b c b≤c = b≤c
+    +≤₂ (suc a) b zero ()
+    +≤₂ (suc a) b (suc c) (s≤s a+b≤c) = ≤-suc (+≤₂ a b c a+b≤c)
+
+    +≤₁ : (a b c : ℕ) → a ℕ+ b ≤ c → a ≤ c
+    +≤₁ a b c a+b≤c = +≤₂ b a c (subst (λ z → z ≤ c) (+-comm a b) a+b≤c)
 
     ≤-lemma′ : (a b c : ℕ) → a ℕ+ b ≡ c → b ≤ c
     ≤-lemma′ zero b c eq = ≡-≤ eq
@@ -948,16 +699,6 @@ Note:
     ≤-lemma : (a b c : ℕ) → a ℕ+ b ≡ c → a ≤ c
     ≤-lemma a b c eq = ≤-lemma′ b a c (trans (+-comm b a) eq)
 
-{-
-    ineqs-sub : (t : X) (f : Factor) (fsub : subFactor t f) (e : Env) → e satisfies (F.i f) → e satisfies (P.i (ineqs (getSub t f fsub)))
-    ineqs-sub t (+F (S k (var .t) == S a b)) (inj₁ (refl , _)) e sat = ≤-ineqs′ k (S a b) e
-      (≤-lemma k (lookup e t) (evalTerm (lookup e) (S a b)) (T≡ sat))
-    ineqs-sub t (+F (S _ ∅ == _)) (inj₁ (() , _))
-    ineqs-sub t (+F (S a b == S k (var .t))) (inj₂ (refl , x)) e sat = ≤-ineqs′ k (S a b) e (
-      (≤-lemma k (lookup e t) (evalTerm (lookup e) (S a b)) (sym (T≡ sat))))
-    ineqs-sub t (+F (_ == S _ ∅)) (inj₂ (() , _))
-    ineqs-sub t (-F _) ()
--}
     ineqs-sub : (t : X) (f : Factor) (fsub : subFactor t f) (e : Env) → e satisfies (F.i f) → e satisfies (P.i (ineqs (getSub t f fsub)))
     ineqs-sub t (+F (S .k (var .t) == .term)) (subL k term _) e sat = ≤-ineqs′ k term e
       (≤-lemma k (lookup e t) (evalTerm (lookup e) term) (T≡ sat))
@@ -975,42 +716,22 @@ Note:
       (subst T (sym (replace-prod-sub-equiv t (getSub t f fsub) fs e (subst T (sym (getSub-works t f fsub e)) (∈-sat f fs loc e sat)))) sat)
     elim-fwd′ t fs e sat | inj₂ nonesub = nosub-fwd t fs nonesub e sat
 
-    elim-fwd : (t : X) (fs : List Factor) (a : ℕ) (e : Env)
-      → ((t , a) ∷ e) satisfies (P.i fs)
-      → e satisfies (P.i (elim-prod t fs))
-    elim-fwd t fs a e = ∉-sat t (elim-prod t fs) a e (elim-prod-∉ t fs) ∘ elim-fwd′ t fs ((t , a) ∷ e)
 
-    {-
-    choice : (t : X) (f : Factor) → subFactor t f → Env → ℕ
-    choice t f fsub e =  evalTerm (lookup e) (Sub.term (getSub t f fsub)) ∸ (Sub.k (getSub t f fsub))
-
---     ∉-eval : (x : X) (t : Term) (a : ℕ) (e : Env) → ¬ x ∈ t → evalTerm (lookup ((x , a) ∷ e)) t ≡ evalTerm (lookup e) t
--- ineqs′-≤ : (k : ℕ) (term : Term) (e : Env) → e satisfies (P.i (ineqs′ k term)) → k ≤ evalTerm (lookup e) term
--}
-{-
-    choice-sat : (t : X) (f : Factor) (fsub : subFactor t f) (e : Env) →
-      ((t , choice t f fsub e) ∷ e) satisfies (F.i (iSub (getSub t f fsub)))
-    choice-sat t f fsub e with Sub.k (getSub t f fsub) | Sub.term (getSub t f fsub)| evalTerm (lookup e) (Sub.term (getSub t f fsub)) | evalTerm (lookup ((t , choice t f fsub e) ∷ e)) (Sub.term (getSub t f fsub)) | T.∉-eval t (Sub.term (getSub t f fsub)) (choice t f fsub e) e (subterm-∉ t f fsub) | t X≟ t
-    choice-sat t f fsub e | k | term | eterm | .eterm | refl | yes _ = ≡T {!!}
-    choice-sat t f fsub e | k | term | eterm | .eterm | refl | no foo = contradiction refl foo
--}
-{-
-    replace-prod-sub-equiv : (t : X) (sub : Sub t) (fs : List Factor) (e : Env)
-      → e satisfies (F.i (iSub sub))
-      → eval e (P.i (Data.List.map (replace-factor-sub t sub) fs)) ≡ eval e (P.i fs)
-    ∉-sat′ : (t : X) (fs : List Factor) (a : ℕ) (e : Env) → ¬ t P.∈ fs → e satisfies (P.i fs) → ((t , a) ∷ e) satisfies (P.i fs)
--}
 
     a+b-a=b : {a b : ℕ} → a ≤ b → a ℕ+ (b ∸ a) ≡ b
     a+b-a=b {zero} _ = refl
     a+b-a=b {suc a} {zero} ()
     a+b-a=b {suc a} {suc b} (s≤s a≤b) = cong suc (a+b-a=b a≤b)
 
-
     foo : (t : X) (k : ℕ) (term : Term) → ¬ t T.∈ term → (e : Env) → k ≤ (evalTerm (lookup e) term) → ((t , (evalTerm (lookup e) term ∸ k)) ∷ e) satisfies (F.i (+F (S k (var t) == term)))
     foo t k term t∉term e k≤term with evalTerm (lookup e) term | evalTerm (lookup ((t , (evalTerm (lookup e) term ∸ k)) ∷ e)) term | T.∉-eval t term (evalTerm (lookup e) term ∸ k) e t∉term | t X≟ t
     foo t k term t∉term e k≤term | eterm | .eterm | refl | yes _ = ≡T (a+b-a=b k≤term)
     foo t k term t∉term e k≤term | _ | _ | _ | no t≠t = contradiction refl t≠t
+
+    bar : (a b c : ℕ) → b ℕ+ a ≡ c → a ≡ c ∸ b
+    bar a zero c eq = eq
+    bar a (suc b) zero ()
+    bar a (suc b) (suc c) eq = bar a b c (cong pred eq)
 
     forbidden : (t : X) (f : Factor) (e : Env) → List ℕ
     forbidden t (+F _) e = []
@@ -1021,30 +742,79 @@ Note:
     forbidden t (-F (term == S k (var .t))) e | no _ | yes refl = (evalTerm (lookup e) term ∸ k) ∷ []
     forbidden t (-F (_ == S _ ∅)) e | no _ | yes ()
     forbidden t (-F (_ == _)) e | no _ | no _ = []
-    
-    ¬forbidden-sat : (t : X) (f : Factor) (a : ℕ) (e : Env) → ¬ subFactor t f → ¬ a L.∈ (forbidden t f e)
-      → e satisfies (F.i f)
+
+    ¬forbidden-sat : (t : X) (f : Factor) (a : ℕ) (e : Env) (ns : ¬ subFactor t f) → ¬ a L.∈ (forbidden t f e)
+      → e satisfies (F.i (replace-factor-nosub t f ns))
       → ((t , a) ∷ e) satisfies (F.i f)
     ¬forbidden-sat t (+F (L == R)) a e ns nf sat with t T.∈? L | t T.∈? R
     ¬forbidden-sat t (+F (S _ ∅ == _)) _ _ _ _ _ | yes () | _
     ¬forbidden-sat t (+F (_ == S _ ∅)) _ _ _ _ _ | _ | yes ()
-    ¬forbidden-sat t (+F (S x (var .t) == S y (var .t))) a e ns nf sat | yes refl | yes refl = {!!}
-    ¬forbidden-sat t (+F (S k (var .t) == term)) a e s nf sat | yes refl | no t∉term = {!!}
-    ¬forbidden-sat t (+F (term == S k (var .t))) a e s nf sat | no t∉term | yes refl = {!!}
-    ¬forbidden-sat t (+F (L == R)) a e ns nf sat | no t∉L | no t∉R = {!!}
-    ¬forbidden-sat t (-F (L == R)) a e ns nf sat = {!!}
+    ¬forbidden-sat t (+F (S x (var .t) == S y (var .t))) a e ns nf sat | yes refl | yes refl with t X≟ t
+    ¬forbidden-sat t (+F (S x (var .t) == S y (var .t))) a e ns nf sat | yes refl | yes refl | no t≠t = contradiction refl t≠t
+    ¬forbidden-sat t (+F (S x (var .t) == S y (var .t))) a e ns nf sat | yes refl | yes refl | yes _ =
+      ≡T (cong (λ z → z ℕ+ a) (T≡ sat))
+    ¬forbidden-sat t (+F (S k (var .t) == term)) a e ns nf sat | yes refl | no t∉term = contradiction (subL k term t∉term) ns
+    ¬forbidden-sat t (+F (term == S k (var .t))) a e ns nf sat | no t∉term | yes refl = contradiction (subR k term t∉term) ns
+    ¬forbidden-sat t (+F (L == R)) a e ns nf sat | no t∉L | no t∉R = subst T (sym (A.∉-eval t (L == R) a e [ t∉L , t∉R ]′)) sat
+    ¬forbidden-sat t (-F (L == R)) a e ns nf sat with t T.∈? L | t T.∈? R
+    ¬forbidden-sat t (-F (S _ ∅ == _)) _ _ _ _ _ | yes () | _
+    ¬forbidden-sat t (-F (_ == S _ ∅)) _ _ _ _ _ | _ | yes ()
+    ¬forbidden-sat t (-F (S x (var .t) == S y (var .t))) a e ns nf sat | yes refl | yes refl with t X≟ t
+    ¬forbidden-sat t (-F (S x (var .t) == S y (var .t))) a e ns nf sat | yes refl | yes refl | yes _ =
+      ≢F ((F≢ sat) ∘ (pred*′ {x} {y} a))
+    ¬forbidden-sat t (-F (S x (var .t) == S y (var .t))) a e ns nf sat | yes refl | yes refl | no t≠t = contradiction refl t≠t
+    ¬forbidden-sat t (-F (S k (var .t) == term)) a e ns nf sat | yes refl | no t∉term with t X≟ t
+    ¬forbidden-sat t (-F (S k (var .t) == term)) a e ns nf sat | yes refl | no t∉term | yes _ with evalTerm (lookup e) term | evalTerm (lookup ((t , a) ∷ e)) term | T.∉-eval t term a e t∉term
+    ¬forbidden-sat t (-F (S k (var .t) == term)) a e ns nf sat | yes refl | no t∉term | yes _ | eterm | .eterm | refl =
+      ≢F (λ k+a=term → nf (subst (λ z → a L.∈ (z ∷ [])) (bar a k eterm k+a=term) (here a [])))
+    ¬forbidden-sat t (-F (S k (var .t) == term)) a e ns nf sat | yes refl | no t∉term | no t≠t = contradiction refl t≠t
+    ¬forbidden-sat t (-F (term == S k (var .t))) a e ns nf sat | no t∉term | yes refl with t X≟ t
+    ¬forbidden-sat t (-F (term == S k (var .t))) a e ns nf sat | no t∉term | yes refl | yes _ with evalTerm (lookup e) term | evalTerm (lookup ((t , a) ∷ e)) term | T.∉-eval t term a e t∉term
+    ¬forbidden-sat t (-F (term == S k (var .t))) a e ns nf sat | no t∉term | yes refl | yes _  | eterm | .eterm | refl =
+      ≢F ((λ k+a=term → nf (subst (λ z → a L.∈ (z ∷ [])) (bar a k eterm k+a=term) (here a []))) ∘ sym)
+    ¬forbidden-sat t (-F (term == S k (var .t))) a e ns nf sat | no t∉term | yes refl | no t≠t = contradiction refl t≠t
+    ¬forbidden-sat t (-F (L == R)) a e ns nf sat | no t∉L | no t∉R = subst T (cong not (sym (A.∉-eval t (L == R) a e [ t∉L , t∉R ]′))) sat
     
-    
-    
+    forbiddens : (t : X) (fs : List Factor) (e : Env) → List ℕ
+    forbiddens _ [] _ = []
+    forbiddens t (f ∷ fs) e = (forbidden t f e) ++ (forbiddens t fs e)
+
+    ¬forbiddens-sat : (t : X) (fs : List Factor) (a : ℕ) (e : Env) (ns : allP (¬_ ∘ subFactor t) fs) → ¬ a L.∈ (forbiddens t fs e)
+      → e satisfies (P.i (L.mapAllP (replace-factor-nosub t) fs ns))
+      → ((t , a) ∷ e) satisfies (P.i fs)
+    ¬forbiddens-sat t [] a e _ _ _ = tt
+    ¬forbiddens-sat t (f ∷ fs) a e (fns , fsns) nf sat = sat-∷ ((t , a) ∷ e) f fs
+      (¬forbidden-sat t f a e fns (nf ∘ (L.∈-++₁ a (forbidden t f e) (forbiddens t fs e))) (sat-head e (replace-factor-nosub t f fns) (L.mapAllP (replace-factor-nosub t) fs fsns) sat))
+      (¬forbiddens-sat t fs a e fsns (nf ∘ (L.∈-++₂ a (forbidden t f e) (forbiddens t fs e))) (sat-tail e (replace-factor-nosub t f fns) (L.mapAllP (replace-factor-nosub t) fs fsns) sat))
+
+    fresh : List ℕ → ℕ
+    fresh [] = zero
+    fresh (x ∷ xs) = (fresh xs) ℕ+ (suc x)
+
+    fresh-≤ : (xs : List ℕ) (y : ℕ) → fresh xs ≤ y → ¬ y L.∈ xs
+    fresh-≤ [] _ _ ()
+    fresh-≤ (.y ∷ xs) y f≤y (here .y .xs) = suc-≰ y (+≤₂ (fresh xs) (suc y) y f≤y)
+    fresh-≤ (x ∷ xs) y f≤y (there .x y∈xs) = fresh-≤ xs y (+≤₁ (fresh xs) (suc x) y f≤y) y∈xs
+
+    fresh-∉ : (xs : List ℕ) → ¬ (fresh xs) L.∈ xs
+    fresh-∉ xs = fresh-≤ xs (fresh xs) (≡-≤ refl)
 
 
+    -----------------
+    -- And finally --
+    -----------------
 
-    
---     ineqs′-≤ : (k : ℕ) (term : Term) (e : Env) → e satisfies (P.i (ineqs′ k term)) → k ≤ evalTerm (lookup e) term
---     replace-prod-sub-∈ : (t : X) (s : Sub t) (fs : List Factor) → t P.∈ (Data.List.map (replace-factor-sub t s) fs) → t T.∈ Sub.term s
+    elim-fwd : (t : X) (fs : List Factor) (a : ℕ) (e : Env)
+      → ((t , a) ∷ e) satisfies (P.i fs)
+      → e satisfies (P.i (elim-prod t fs))
+    -------------------------------------------------------
+    elim-fwd t fs a e = ∉-sat t (elim-prod t fs) a e (elim-prod-∉ t fs) ∘ elim-fwd′ t fs ((t , a) ∷ e)
+
+
     elim-bwd : (t : X) (fs : List Factor) (e : Env)
       → e satisfies (P.i (elim-prod t fs))
       → Σ ℕ (λ a → ((t , a) ∷ e) satisfies (P.i fs))
+    ------------------------------------------------
     elim-bwd t fs e sat with L.first (subFactor t) (subFactor? t) fs
     elim-bwd t fs e sat | inj₁ ((+F (S .k (var .t) == .term)) , subL k term t∉term , loc) =
       ((evalTerm (lookup e) term) ∸ k ,
@@ -1062,16 +832,7 @@ Note:
                 (∉-sat′ t (Data.List.map (replace-factor-sub t (substitution k term)) fs) (evalTerm (lookup e) term ∸ k) e
                   (t∉term  ∘ replace-prod-sub-∈ t (substitution k term) fs)
                   (sat-++₂ e (ineqs′ k term) (Data.List.map (replace-factor-sub t (substitution k term)) fs) sat)))
-    elim-bwd t fs e sat | inj₂ nonesub = {!!}
+    elim-bwd t fs e sat | inj₂ nonesub =
+      (fresh (forbiddens t fs e) ,
+      ¬forbiddens-sat t fs (fresh (forbiddens t fs e)) e nonesub (fresh-∉ (forbiddens t fs e)) sat)
 
-
-{-
-    e satisfies (elim t fs)
-    -> ((t , choice) ∷ e) satisfies 
--}
-{-
-    elim-prod : (t : X) → List Factor → List Factor
-    elim-prod t fs with L.first (subFactor t) (subFactor? t) fs
-    elim-prod t fs | inj₁ (f , fsub , _) = (ineqs (getSub t f fsub)) ++ (Data.List.map (replace-factor-sub t (getSub t f fsub)) fs)
-    elim-prod t fs inj₂ nonesub = L.mapAllP (replace-factor-nosub t) fs nonesub  
--}
