@@ -1,9 +1,9 @@
--- Jeremy Pope
--- April 4, 2017
-
-
 open import Boiler
-
+open import Data.Vec
+import Data.Sum
+import Data.Product
+module Sum = Data.Sum
+module Product = Data.Product
 
 module QElim where
 
@@ -130,18 +130,13 @@ module QElim where
     -- Prerequisite II: a single-step QE
     module WithQE (qe : QE) where
 
-      -- Constructive semantics are decidable
+      -- Constructive semantics are then decidable
       ⟦_⟧? : {n : ℕ} → (p : Prop n) → (e : Vec Y n) → Dec (⟦ p ⟧ e)
       ⟦ p ⟧? e with qfree-dec (lift-qe qe p) (lift-qe-qfree qe p) e
       ... | yes ⟦p'⟧e = yes (lift-qe-bwd qe p e ⟦p'⟧e)
       ... | no ¬⟦p'⟧e = no (¬⟦p'⟧e ∘ lift-qe-fwd qe p e)
 
 
-
-
-
-
-  -- And then it gets less pretty
 
 
   

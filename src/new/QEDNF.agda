@@ -1,5 +1,10 @@
 open import QElim
 open import Boiler
+open import Data.Vec using (Vec ; [] ; _∷_)
+import Data.Sum
+import Data.Product
+module Sum = Data.Sum
+module Product = Data.Product
 
 module QEDNF (da : DecAtom) where
 
@@ -16,7 +21,7 @@ module QEDNF (da : DecAtom) where
   ⇒-disj-bwd p₁ p₂ e (inj₂ ⟦p₂⟧) = λ _ → ⟦p₂⟧
   
 
-  module QEDNF (trueₐ : {n : ℕ} → Atom n) (⟦trueₐ⟧ : {n : ℕ} (e : Vec Y n) → ⟦ trueₐ ⟧ₐ e) where
+  module WithTrue (trueₐ : {n : ℕ} → Atom n) (⟦trueₐ⟧ : {n : ℕ} (e : Vec Y n) → ⟦ trueₐ ⟧ₐ e) where
 
     true : {n : ℕ} → Prop n
     true = atom trueₐ

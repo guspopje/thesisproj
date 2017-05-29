@@ -1,103 +1,23 @@
 module Boiler where
 
-  -- Begin boilerplate code (most in stdlib) --
+  open import Data.Nat public
+  open import Data.Nat.Properties public
+  open import Data.List using (List ; [] ; _∷_ ; _++_ ; map ; [_]) public
+  open import Data.Vec using (Vec) public
+  open import Data.Product using (Σ ; _×_ ; _,_ ; proj₁ ; proj₂) public
+  open import Data.Sum using (_⊎_ ; inj₁ ; inj₂ ; [_,_]′) public
+  open import Relation.Nullary using (¬_ ; Dec ; yes ; no) public
+  open import Relation.Nullary.Negation using (contradiction ; contraposition) public
+  open import Data.Empty using (⊥ ; ⊥-elim) public
+  open import Data.Unit using (⊤ ; tt) public
+  open import Function using (id ; _∘_ ; flip) public
 
-  data ℕ : Set where
-    zero : ℕ
-    suc : ℕ → ℕ
 
-  data Vec (A : Set) : ℕ → Set where
-    [] : Vec A zero
-    _∷_ : {n : ℕ} → A → Vec A n → Vec A (suc n)
+  -- Much of this may be in the stdlib somewhere...
 
-  data ⊥ : Set where
-
-  ¬_ : Set → Set
-  ¬ x = x → ⊥
-
-  ⊥-elim : {A : Set} → ⊥ → A
-  ⊥-elim ()
-
-  contradiction : {A B : Set} → A → ¬ A → B
-  contradiction a ¬a = ⊥-elim (¬a a)
-
-  contraposition : {A B : Set} → (A → B) → ¬ B → ¬ A
-  contraposition f ¬b a = ¬b (f a)
 
   ¬¬-intro : {A : Set} → A → ¬ ¬ A
   ¬¬-intro a = λ ¬a → ¬a a
-
-  id : {A : Set} → A → A
-  id x = x
-
-  _∘_ : {A B C : Set} → (B → C) → (A → B) → A → C
-  g ∘ f = λ x → g (f x)
-  infixr 10 _∘_
-
-  module Sum where
-    data _⊎_ (A : Set) (B : Set) : Set where
-      inj₁ : A → A ⊎ B
-      inj₂ : B → A ⊎ B
-
-    [_,_]′ : {A B C : Set} → (A → C) → (B → C) → (A ⊎ B) → C
-    [ f , g ]′ (inj₁ a) = f a
-    [ f , g ]′ (inj₂ b) = g b
-
-    map : {A B C D : Set} → (A → C) → (B → D) → (A ⊎ B) → (C ⊎ D)
-    map f _ (inj₁ a) = inj₁ (f a)
-    map _ g (inj₂ b) = inj₂ (g b)
-
-  module Product where
-    record Σ (A : Set) (B : A → Set) : Set where
-      constructor _,_
-      field
-        proj₁ : A
-        proj₂ : B proj₁
-    open Σ public
-
-    _×_ : Set → Set → Set
-    A × B = Σ A (λ _ → B)
-
-    map : {A C : Set} {B : A → Set} {D : C → Set} (f : A → C) (g : {a : A} → B a → D (f a)) → Σ A B → Σ C D
-    map f g (a , b) = (f a , g b)
-
-
-  --module List where
-
-  data List (A : Set) : Set where
-    [] : List A
-    _∷_ : A → List A → List A
-
-  [_] : {A : Set} → A → List A
-  [ a ] = a ∷ []
-
-  map : {A B : Set} → (A → B) → List A → List B
-  map f [] = []
-  map f (x ∷ xs) = f x ∷ map f xs
-
-  _++_ : {A : Set} → List A → List A → List A
-  [] ++ ys = ys
-  (x ∷ xs) ++ ys = x ∷ (xs ++ ys)
-
-  concat : {A : Set} → List (List A) → List A
-  concat [] = []
-  concat (x ∷ xs) = x ++ (concat xs)
-
-  open Sum public hiding (map)
-  open Product public hiding (map)
-  --open List public
-
-
-
-
-
-  data Dec (A : Set) : Set where
-    yes : A → Dec A
-    no  : ¬ A → Dec A
-
-  ¬? : {A : Set} → Dec A → Dec (¬ A)
-  ¬? (yes a) = no (λ f → f a)
-  ¬? (no ¬a) = yes ¬a
 
   _⊎?_ : {A B : Set} → Dec A → Dec B → Dec (A ⊎ B)
   (yes a) ⊎? _ = yes (inj₁ a)
@@ -114,6 +34,49 @@ module Boiler where
   (yes a) ⇒? (no ¬b) = no (λ f → ¬b (f a))
   (no ¬a) ⇒? (no ¬b) = yes (λ a → contradiction a ¬a)
 
+  ¬? : {A : Set} → Dec A → Dec (¬ A)
+  ¬? (yes a) = no (λ f → f a)
+  ¬? (no ¬a) = yes ¬a
 
+  data _∈_ {A : Set} (a : A) : List A → Set where
+    here : (as : List A) → a ∈ (a ∷ as)
+    there : {as : List A} (b : A) → a ∈ as → a ∈ (b ∷ as)
 
-  -- End of boilerplate code --
+  allP : {A : Set} → (A → Set) → List A → Set
+  allP P [] = ⊤
+  allP P (a ∷ as) = P a × allP P as
+
+  mapAllP : {A : Set} {P Q : A → Set} → ({a : A} → P a → Q a) → (as : List A) → allP P as → allP Q as
+  mapAllP _ [] _ = tt
+  mapAllP f (a ∷ as) (a! , as!) = (f a! , mapAllP f as as!)
+
+  mapWithP : {A B : Set} {P : A → Set} (f : (a : A) → P a → B) (as : List A) → allP P as → List B
+  mapWithP f [] _ = []
+  mapWithP f (a ∷ as) (pa , pas) = f a pa ∷ mapWithP f as pas
+
+  -- For a decidable property P, it is true for something in the list or nothing in the list.
+  first : {A : Set} (P : A → Set) → ((a : A) → Dec (P a)) → (as : List A)
+    → (Σ A (λ a → (P a × a ∈ as))) ⊎ (allP (¬_ ∘ P) as)
+  first P P? [] = inj₂ tt
+  first P P? (a ∷ as) with P? a
+  ... | yes Pa = inj₁ (a , Pa , here as)
+  ... | no ¬Pa with first P P? as
+  ... | inj₁ (a' , Pa' , a'∈as) = inj₁ (a' , Pa' , there a a'∈as)
+  ... | inj₂ ¬Pas = inj₂ (¬Pa , ¬Pas)
+
+  ∈-++₁ : {A : Set} {a : A} (xs ys : List A) → a ∈ xs → a ∈ (xs ++ ys)
+  ∈-++₁ (a ∷ .xs) ys (here xs) = here (xs ++ ys)
+  ∈-++₁ (.x ∷ xs) ys (there x a∈xs) = there x (∈-++₁ xs ys a∈xs)
+
+  ∈-++₂ : {A : Set} {a : A} (xs ys : List A) → a ∈ ys → a ∈ (xs ++ ys)
+  ∈-++₂ [] ys a∈ys = a∈ys
+  ∈-++₂ (x ∷ xs) ys a∈ys = there x (∈-++₂ xs ys a∈ys)
+
+  either-way : {A B : Set}
+    → (  A → B)
+    → (¬ A → B)
+    → Dec A
+    → B
+  either-way f g (yes a) = f a
+  either-way f g (no ¬a) = g ¬a
+
